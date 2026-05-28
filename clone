@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+
+# The purpose of this script is when given a git remote:
+# 1. create a directory of the project name
+# 2. clone repository into the made directory
+# 3. rename the cloned repository to master branch name
+
+if [[ -z "$1" ]]; then
+    echo "Error: provide a repository" >&2
+    exit 1
+fi
+
+IFS=':/' read -r -a url <<< "$1"
+
+indexes=( "${!url[@]}" )
+lastindex=${indexes[-1]}
+
+project_name="${url[lastindex]}"
+project_name="${project_name%.git}"
+
+current_directory=$(pwd)
+
+mkdir -p "$current_directory/$project_name" || exit 1
+
+cd "$current_directory/$project_name" || exit 1
+
+if ! git clone "$1"; then
+    echo "Error: failed to clone repository" >&2
+    rmdir "$current_directory/$project_name"
+    exit 1
+fi
+
+cd "$project_name" || exit 1
+
+branch_name=$(git rev-parse --abbrev-ref HEAD) || exit 1
+
+cd ..
+
+mv "$project_name" "$branch_name" || exit 1

@@ -26,7 +26,7 @@ Options:
   -h             Show this help message
 
 Commands:
-  list           List all worktrees (runs 'git worktree list')
+  list           List all worktrees (runs 'git branch')
 
 Without switches: creates a new local branch from current HEAD.
 
@@ -85,7 +85,7 @@ fi
 
 # Handle list command
 if [[ "$1" == "list" ]]; then
-    exec git worktree list
+    exec git branch
 fi
 
 branch="$1"

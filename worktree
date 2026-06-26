@@ -1,11 +1,5 @@
 #!/usr/bin/env bash
 
-# Without flags: create a branch and a worktree linked to it
-# With --merge: merge a worktree branch into the main repository and clean up
-# With --continue: clean up after resolving merge conflicts
-# With -d: delete a worktree for a given branch
-# With list: list all worktrees
-
 usage() {
     cat <<EOF
 Usage: worktree [OPTIONS] <branch>
@@ -72,14 +66,16 @@ while [[ $# -gt 0 ]]; do
         -r) remote=true ;;
         -e) existing=true ;;
         -h) usage; exit 0 ;;
+        --help) usage; exit 0 ;;
         *) break ;;
     esac
     shift
 done
 
 if [[ -z "$1" ]]; then
-    echo "Error: provide branch name" >&2
     usage >&2
+    echo ""
+    echo "Error: provide branch name" >&2
     exit 1
 fi
 
@@ -103,20 +99,17 @@ fi
 
 if [[ "$merge_mode" = true && "$continue_mode" = true ]]; then
     echo "Error: cannot use --merge and --continue together" >&2
-    usage >&2
     exit 1
 fi
 
 if [[ "$merge_mode" = true || "$continue_mode" = true ]]; then
     if $continue_mode && [[ "$confirm" != true ]]; then
         echo "Error: --continue requires --confirm" >&2
-        usage >&2
         exit 1
     fi
 
     if [[ "$remote" = true || "$existing" = true || "$delete_mode" = true ]]; then
         echo "Error: cannot use -r, -e, or -d with --merge or --continue" >&2
-        usage >&2
         exit 1
     fi
 
@@ -214,13 +207,11 @@ elif $delete_mode; then
 
     if [[ "$remote" = true || "$existing" = true ]]; then
         echo "Error: cannot use -r or -e with -d" >&2
-        usage >&2
         exit 1
     fi
 
     if [[ "$confirm" = true ]]; then
         echo "Error: --confirm is only used with --merge or --continue" >&2
-        usage >&2
         exit 1
     fi
 
@@ -245,19 +236,16 @@ else
 
     if [[ "$remote" = true && "$existing" = true ]]; then
         echo "Error: cannot use switches -r and -e at the same time" >&2
-        usage >&2
         exit 1
     fi
 
     if [[ "$delete_mode" = true ]]; then
         echo "Error: -d cannot be used with create mode" >&2
-        usage >&2
         exit 1
     fi
 
     if [[ "$confirm" = true ]]; then
         echo "Error: --confirm is only used with --merge or --continue" >&2
-        usage >&2
         exit 1
     fi
 

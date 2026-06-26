@@ -12,11 +12,11 @@ import (
 func main() {
 	// Parse flags
 	mergeMode := flag.Bool("merge", false, "Merge the branch into main and clean up")
-	delete := flag.Bool("delete", false, "Delete the branch, remote branch, and worktree")
+	deleteMode := flag.Bool("delete", false, "Delete the branch, remote branch, and worktree")
 	confirm := flag.Bool("confirm", false, "Confirm the merge or delete operation")
 	remote := flag.Bool("r", false, "Create local tracking branch from origin/<branch>")
 	existing := flag.Bool("e", false, "Create a worktree from an existing local branch")
-	deleteMode := flag.Bool("d", false, "Delete the worktree directory")
+	delete := flag.Bool("d", false, "Delete the worktree directory")
 	help := flag.Bool("h", false, "Show help message")
 	
 	flag.BoolVar(help, "help", false, "Show help message")
@@ -66,27 +66,27 @@ func main() {
 		os.Exit(1)
 	}
 
-	if *mergeMode && *delete {
+	if *mergeMode && *deleteMode {
 		fmt.Fprintln(os.Stderr, "Error: cannot use --merge and --delete together")
 		os.Exit(1)
 	}
 
-	if *mergeMode || *delete {
-		if *delete && !*confirm {
+	if *mergeMode || *deleteMode {
+		if *deleteMode && !*confirm {
 			fmt.Fprintln(os.Stderr, "Error: --delete requires --confirm")
 			os.Exit(1)
 		}
 
-		if *remote || *existing || *deleteMode {
+		if *remote || *existing || *delete {
 			fmt.Fprintln(os.Stderr, "Error: cannot use -r, -e, or -d with --merge or --delete")
 			os.Exit(1)
 		}
 
-		mergeOrDelete(branch, *mergeMode, *delete, *confirm)
+		mergeOrDelete(branch, *mergeMode, *deleteMode, *confirm)
 		os.Exit(0)
 	}
 
-	if *deleteMode {
+	if *delete {
 		if *remote || *existing {
 			fmt.Fprintln(os.Stderr, "Error: cannot use -r or -e with -d")
 			os.Exit(1)
@@ -107,7 +107,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if *deleteMode {
+	if *delete {
 		fmt.Fprintln(os.Stderr, "Error: -d cannot be used with create mode")
 		os.Exit(1)
 	}
@@ -217,7 +217,7 @@ func branchExists(branch string) bool {
 	return cmd.Run() == nil
 }
 
-func mergeOrDelete(branch string, mergeMode, delete, confirm bool) {
+func mergeOrDelete(branch string, mergeMode, deleteMode, confirm bool) {
 	mainBranch, err := getMainBranch()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
@@ -299,7 +299,7 @@ func mergeOrDelete(branch string, mergeMode, delete, confirm bool) {
 		fmt.Println("=== DRY RUN - No changes will be made ===")
 		fmt.Println()
 		fmt.Println("Would perform the following:")
-		if delete {
+		if deleteMode {
 			fmt.Printf("  1. Delete worktree at %s and clean up empty parent directories\n", worktreePath)
 			fmt.Printf("  2. Delete local branch %s\n", branch)
 			fmt.Printf("  3. Delete remote branch origin/%s\n", branch)

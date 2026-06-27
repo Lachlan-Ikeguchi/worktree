@@ -43,7 +43,28 @@ func main() {
 
 	// Handle list command
 	if args[0] == "list" {
-		cmd := exec.Command("git", "branch")
+		// Check for -r flag in the remaining arguments
+		var useRemote bool
+		if len(args) > 1 {
+			for i := 1; i < len(args); i++ {
+				if args[i] == "-r" {
+					useRemote = true
+				} else {
+					// Unknown flag for list command
+					fmt.Fprintf(os.Stderr, "Error: unknown flag '%s' for list command\n", args[i])
+					printUsage()
+					os.Exit(1)
+				}
+			}
+		}
+
+		var gitArgs []string
+		if useRemote {
+			gitArgs = []string{"branch", "-r"}
+		} else {
+			gitArgs = []string{"branch"}
+		}
+		cmd := exec.Command("git", gitArgs...)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		if err := cmd.Run(); err != nil {
@@ -140,6 +161,7 @@ Options:
 
 Commands:
   list           List all worktrees (runs 'git branch')
+  list -r        List all remote branches (runs 'git branch -r')
 
 Without switches: creates a new local branch from current HEAD.
 

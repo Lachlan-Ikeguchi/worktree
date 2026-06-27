@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Install completion scripts for worktree and clone commands
+# Install completion scripts for worktree command (includes clone subcommand)
 # This script installs completion scripts to ~/.bash_completion.d/
 
 set -e
@@ -11,26 +11,16 @@ echo "Installing completion scripts..."
 COMPLETION_DIR="$HOME/.bash_completion.d"
 mkdir -p "$COMPLETION_DIR"
 
-# Build worktree
+# Build worktree (includes clone subcommand)
 if [ -f cmd/worktree/main.go ]; then
-    echo "Building worktree..."
+    echo "Building worktree (includes clone subcommand)..."
     go build -o worktree ./cmd/worktree/
     ./worktree completion bash > "$COMPLETION_DIR/worktree"
     rm worktree
     echo "Installed worktree completion to $COMPLETION_DIR/worktree"
+    echo "Note: worktree now includes the clone subcommand"
 else
     echo "Warning: cmd/worktree/main.go not found, skipping worktree"
-fi
-
-# Build clone
-if [ -f cmd/clone/main.go ]; then
-    echo "Building clone..."
-    go build -o clone ./cmd/clone/
-    ./clone completion bash > "$COMPLETION_DIR/clone"
-    rm clone
-    echo "Installed clone completion to $COMPLETION_DIR/clone"
-else
-    echo "Warning: cmd/clone/main.go not found, skipping clone"
 fi
 
 # Check if .bashrc exists and add sourcing if not already present

@@ -37,10 +37,6 @@ Merge a branch into main/master and clean up (dry-run by default):
   worktree --merge <branch-name>
   worktree --merge --confirm <branch-name>
 
-Merge with rebase onto main before merging:
-  worktree --merge --rebase <branch-name>
-  worktree --merge --rebase --confirm <branch-name>
-
 Delete branch and worktree (dry-run by default):
   worktree --delete <branch-name>
   worktree --delete --confirm <branch-name>`,
@@ -55,12 +51,12 @@ Delete branch and worktree (dry-run by default):
 		
 		// Check if we're in the main repo (has .git/) not a worktree (has .git file)
 		if isWorktree() {
-			fmt.Fprintln(os.Stderr, "Error: must be called from the main repository, not a worktree")
+			fmt.Fprintln(os.Stderr, "WARNING: must be called from the main repository, not a worktree")
 			os.Exit(1)
 		}
 
 		if !isGitRepo() {
-			fmt.Fprintln(os.Stderr, "Error: not a git repository")
+			fmt.Fprintln(os.Stderr, "WARNING: not a git repository")
 			os.Exit(1)
 		}
 	},
@@ -74,7 +70,6 @@ var (
 	mergeMode     bool
 	deleteMode    bool
 	confirmFlag   bool
-	rebaseFlag    bool
 )
 
 // Flags for list command
@@ -88,7 +83,6 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(&mergeMode, "merge", false, "Merge the branch into main and clean up")
 	rootCmd.PersistentFlags().BoolVar(&deleteMode, "delete", false, "Delete the branch, remote branch, and worktree")
 	rootCmd.PersistentFlags().BoolVar(&confirmFlag, "confirm", false, "Confirm the merge or delete operation")
-	rootCmd.PersistentFlags().BoolVar(&rebaseFlag, "rebase", false, "Rebase the branch onto main before merging")
 
 	// List command
 	listCmd := &cobra.Command{
@@ -126,51 +120,44 @@ func init() {
 
 		// Validate flag combinations
 		if mergeMode && deleteMode {
-			fmt.Fprintln(os.Stderr, "Error: cannot use --merge and --delete together")
+			fmt.Fprintln(os.Stderr, "WARNING: cannot use --merge and --delete together")
 			os.Exit(1)
 		}
 
-		if (mergeMode || deleteMode) && rebaseFlag {
-			if !mergeMode {
-				fmt.Fprintln(os.Stderr, "Error: cannot use --rebase without --merge")
-				os.Exit(1)
-			}
-		}
-
 		if (mergeMode || deleteMode) && (remoteFlag || existingFlag || deleteFlag) {
-			fmt.Fprintln(os.Stderr, "Error: cannot use -r, -e, or -d with --merge or --delete")
+			fmt.Fprintln(os.Stderr, "WARNING: cannot use -r, -e, or -d with --merge or --delete")
 			os.Exit(1)
 		}
 
 		if deleteFlag && (remoteFlag || existingFlag) {
-			fmt.Fprintln(os.Stderr, "Error: cannot use -r or -e with -d")
+			fmt.Fprintln(os.Stderr, "WARNING: cannot use -r or -e with -d")
 			os.Exit(1)
 		}
 
 		if deleteFlag && confirmFlag {
-			fmt.Fprintln(os.Stderr, "Error: --confirm is only used with --merge or --delete")
+			fmt.Fprintln(os.Stderr, "WARNING: --confirm is only used with --merge or --delete")
 			os.Exit(1)
 		}
 
 		if confirmFlag && !mergeMode && !deleteMode {
-			fmt.Fprintln(os.Stderr, "Error: --confirm is only used with --merge or --delete")
+			fmt.Fprintln(os.Stderr, "WARNING: --confirm is only used with --merge or --delete")
 			os.Exit(1)
 		}
 
 		if remoteFlag && existingFlag {
-			fmt.Fprintln(os.Stderr, "Error: cannot use switches -r and -e at the same time")
+			fmt.Fprintln(os.Stderr, "WARNING: cannot use switches -r and -e at the same time")
 			os.Exit(1)
 		}
 
 		if deleteFlag && (mergeMode || deleteMode) {
-			fmt.Fprintln(os.Stderr, "Error: -d cannot be used with create mode")
+			fmt.Fprintln(os.Stderr, "WARNING: -d cannot be used with create mode")
 			os.Exit(1)
 		}
 
 		branch := args[0]
 
 		if mergeMode || deleteMode {
-			mergeOrDelete(branch, mergeMode, deleteMode, confirmFlag, rebaseFlag)
+			mergeOrDelete(branch, mergeMode, deleteMode, confirmFlag)
 			return
 		}
 
@@ -386,15 +373,15 @@ func branchNameCompletion(cmd *cobra.Command, args []string, toComplete string) 
 	return completions, cobra.ShellCompDirectiveNoFileComp
 }
 
-func mergeOrDelete(branch string, mergeMode, deleteMode, confirm, rebase bool) {
+func mergeOrDelete(branch string, mergeMode, deleteMode, confirm bool) {
 	mainBranch, err := getMainBranch()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		fmt.Fprintf(os.Stderr, "WARNING: %v\n", err)
 		os.Exit(1)
 	}
 
 	if !branchExists(branch) {
-		fmt.Fprintf(os.Stderr, "Error: branch '%s' does not exist\n", branch)
+		fmt.Fprintf(os.Stderr, "WARNING: branch '%s' does not exist\n", branch)
 		os.Exit(1)
 	}
 
@@ -402,36 +389,11 @@ func mergeOrDelete(branch string, mergeMode, deleteMode, confirm, rebase bool) {
 
 	if confirm {
 		if mergeMode {
-			// If rebase flag is set, checkout the branch and rebase onto main first
-			if rebase {
-				// Checkout the branch
-				cmd := exec.Command("git", "checkout", branch)
-				if err := cmd.Run(); err != nil {
-					fmt.Fprintf(os.Stderr, "Error: could not checkout branch %s: %v\n", branch, err)
-					os.Exit(1)
-				}
-
-				// Rebase onto main branch
-				cmd = exec.Command("git", "rebase", mainBranch)
-				if err := cmd.Run(); err != nil {
-					fmt.Fprintf(os.Stderr, "Error: rebase failed: %v\n", err)
-					// Abort rebase
-					exec.Command("git", "rebase", "--abort").Run()
-					os.Exit(1)
-				}
-
-				// Checkout main branch for merge
-				cmd = exec.Command("git", "checkout", mainBranch)
-				if err := cmd.Run(); err != nil {
-					fmt.Fprintf(os.Stderr, "Error: could not checkout %s: %v\n", mainBranch, err)
-					os.Exit(1)
-				}
-			}
 
 			// Perform merge
 			cmd := exec.Command("git", "merge", branch)
 			if err := cmd.Run(); err != nil {
-				fmt.Fprintf(os.Stderr, "Error: merge failed: %v\n", err)
+				fmt.Fprintf(os.Stderr, "WARNING: merge failed: %v\n", err)
 				os.Exit(1)
 			}
 		}
@@ -439,7 +401,7 @@ func mergeOrDelete(branch string, mergeMode, deleteMode, confirm, rebase bool) {
 		// Remove worktree
 		cmd := exec.Command("git", "worktree", "remove", worktreePath)
 		if err := cmd.Run(); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: could not remove worktree: %v\n", err)
+			fmt.Fprintf(os.Stderr, "WARNING: could not remove worktree: %v\n", err)
 			os.Exit(1)
 		}
 
@@ -467,7 +429,7 @@ func mergeOrDelete(branch string, mergeMode, deleteMode, confirm, rebase bool) {
 		// Delete local branch
 		cmd = exec.Command("git", "branch", "-d", branch)
 		if err := cmd.Run(); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: failed to delete local branch: %v\n", err)
+			fmt.Fprintf(os.Stderr, "WARNING: failed to delete local branch: %v\n", err)
 			os.Exit(1)
 		}
 
@@ -516,16 +478,7 @@ func mergeOrDelete(branch string, mergeMode, deleteMode, confirm, rebase bool) {
 				commitOutput := strings.TrimSpace(string(output))
 				if commitOutput != "" {
 					commits := strings.Split(commitOutput, "\n")
-					fmt.Printf("  WARNING: Branch %s is %d commit(s) behind %s\n", branch, len(commits), mainBranch)
-					if rebase {
-						fmt.Printf("  INFO: --rebase flag set, will rebase onto %s before merging\n", mainBranch)
-						// Test rebase
-						fmt.Printf("Testing: Rebase %s onto %s\n", branch, mainBranch)
-						_ = exec.Command("git", "rebase", "--dry-run", mainBranch, branch)
-						// Note: git rebase doesn't have --dry-run, so we do a test checkout and rebase
-						// We'll just report that rebase is needed
-						fmt.Printf("  PASS: Rebase would be performed (branch is behind main)\n")
-					}
+					fmt.Fprintf(os.Stderr, "WARNING: Branch %s is %d commit(s) behind %s\n", branch, len(commits), mainBranch)
 				} else {
 					fmt.Printf("  PASS: Branch %s is up to date with %s\n", branch, mainBranch)
 				}
@@ -644,7 +597,7 @@ func deleteWorktree(branch string) {
 
 	cmd := exec.Command("git", "worktree", "remove", worktreePath)
 	if err := cmd.Run(); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: could not remove worktree: %v\n", err)
+		fmt.Fprintf(os.Stderr, "WARNING: could not remove worktree: %v\n", err)
 		os.Exit(1)
 	}
 
@@ -680,7 +633,7 @@ func createWorktree(branch string, remote, existing bool) {
 		// Branch validation still needed for -e flag
 		if existing {
 			if !branchExists(branch) {
-				fmt.Fprintf(os.Stderr, "Error: branch '%s' does not exist locally\n", branch)
+				fmt.Fprintf(os.Stderr, "WARNING: branch '%s' does not exist locally\n", branch)
 				os.Exit(1)
 			}
 		}
@@ -689,13 +642,13 @@ func createWorktree(branch string, remote, existing bool) {
 		if remote {
 			cmd := exec.Command("git", "fetch", "origin", fmt.Sprintf("%s:%s", branch, branch))
 			if err := cmd.Run(); err != nil {
-				fmt.Fprintf(os.Stderr, "Error: failed to create local tracking branch: %v\n", err)
+				fmt.Fprintf(os.Stderr, "WARNING: failed to create local tracking branch: %v\n", err)
 				os.Exit(1)
 			}
 		} else if !existing {
 			cmd := exec.Command("git", "branch", branch)
 			if err := cmd.Run(); err != nil {
-				fmt.Fprintf(os.Stderr, "Error: failed to create branch: %v\n", err)
+				fmt.Fprintf(os.Stderr, "WARNING: failed to create branch: %v\n", err)
 				os.Exit(1)
 			}
 			fmt.Println()
@@ -703,7 +656,7 @@ func createWorktree(branch string, remote, existing bool) {
 			fmt.Println()
 		} else {
 			if !branchExists(branch) {
-				fmt.Fprintf(os.Stderr, "Error: branch '%s' does not exist locally\n", branch)
+				fmt.Fprintf(os.Stderr, "WARNING: branch '%s' does not exist locally\n", branch)
 				os.Exit(1)
 			}
 		}
@@ -711,7 +664,7 @@ func createWorktree(branch string, remote, existing bool) {
 		// Create worktree
 		cmd := exec.Command("git", "worktree", "add", worktreePath, branch)
 		if err := cmd.Run(); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: failed to create worktree: %v\n", err)
+			fmt.Fprintf(os.Stderr, "WARNING: failed to create worktree: %v\n", err)
 			os.Exit(1)
 		}
 	}
@@ -722,7 +675,7 @@ func createWorktree(branch string, remote, existing bool) {
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
 	if err := cmd.Run(); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: failed to start shell: %v\n", err)
+		fmt.Fprintf(os.Stderr, "WARNING: failed to start shell: %v\n", err)
 		os.Exit(1)
 	}
 }

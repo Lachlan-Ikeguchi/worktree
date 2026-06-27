@@ -98,15 +98,6 @@ To actually perform the merge and cleanup:
 worktree --merge --confirm <branch-name>
 ```
 
-Merge with rebase onto main before merging (dry-run by default):
-```bash
-worktree --merge --rebase <branch-name>
-```
-
-To actually perform the rebase and merge:
-```bash
-worktree --merge --rebase --confirm <branch-name>
-```
 
 #### Delete branch and worktree
 
@@ -129,7 +120,6 @@ worktree --delete --confirm <branch-name>
 | `-d` | Delete the worktree directory and clean up empty parent directories |
 | `--merge` | Merge branch into main/master and clean up |
 | `--delete` | Delete branch, remote branch, and worktree |
-| `--rebase` | Rebase branch onto main before merging (use with --merge) |
 | `--confirm` | Confirm merge or delete operation (required for --merge and --delete) |
 | `-h, --help` | Show help message |
 
@@ -138,7 +128,6 @@ worktree --delete --confirm <branch-name>
 Both `worktree` and `clone` commands support shell autocompletion through Cobra. The `worktree` command now includes **branch name autocompletion** - when you type `worktree <TAB><TAB>`, it will automatically suggest available local and remote branch names.
 
 ### Setup
-
 **Bash:**
 ```bash
 # Load immediately
@@ -214,10 +203,4 @@ project_name/
 - All commands must be run from within the main repository (not from a worktree)
 - The `-r` and `-e` flags are mutually exclusive
 - `--merge` and `--delete` require `--confirm` to execute
-- Delete operations are dry-run by default for safety
-- `--rebase` flag can only be used with `--merge`
-- Dry-run mode for `--merge` and `--delete` now includes:
-  - Branch status checks (commits ahead/behind main)
-  - Merge conflict detection
-  - Rebase feasibility testing (when `--rebase` is specified)
   - Worktree and branch existence validation

@@ -133,6 +133,54 @@ worktree --delete --confirm <branch-name>
 | `--confirm` | Confirm merge or delete operation (required for --merge and --delete) |
 | `-h, --help` | Show help message |
 
+## Autocompletion
+
+Both `worktree` and `clone` commands now support shell autocompletion through Cobra.
+
+### Setup
+
+**Bash:**
+```bash
+# Load immediately
+source <(worktree completion bash)
+# Or install permanently
+worktree completion bash > /etc/bash_completion.d/worktree
+clone completion bash > /etc/bash_completion.d/clone
+```
+
+**Zsh:**
+```zsh
+# Load immediately
+source <(worktree completion zsh)
+# Or install permanently (add to ~/.zshrc)
+worktree completion zsh > "${fpath[1]}/_worktree"
+clone completion zsh > "${fpath[1]}/_clone"
+```
+
+**Fish:**
+```fish
+# Load immediately
+worktree completion fish | source
+# Or install permanently
+worktree completion fish > ~/.config/fish/completions/worktree.fish
+clone completion fish > ~/.config/fish/completions/clone.fish
+```
+
+**PowerShell:**
+```powershell
+# Load immediately
+worktree completion powershell | Out-String | Invoke-Expression
+# Or install permanently (add to your profile)
+worktree completion powershell > $PROFILE.CurrentUserCurrentHost
+clone completion powershell > $PROFILE.CurrentUserCurrentHost
+```
+
+View completion help:
+```bash
+worktree completion --help
+clone completion --help
+```
+
 ## Directory Structure
 
 After cloning and creating worktrees, your directory structure will look like:

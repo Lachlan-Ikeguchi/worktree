@@ -45,6 +45,7 @@ Delete branch and worktree (dry-run by default):
   worktree --delete <branch-name>
   worktree --delete --confirm <branch-name>`,
 	SilenceUsage: true,
+	Args: cobra.ArbitraryArgs,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		// Skip pre-run for help and completion commands
 		if cmd.Name() == "completion" || (len(args) > 0 && args[0] == "completion") {

@@ -1,14 +1,14 @@
 #!/bin/bash
 
 # Install completion scripts for worktree and clone commands
-# This script installs completion scripts to ~/.bash_autocomplete.d/
+# This script installs completion scripts to ~/.bash_completion.d/
 
 set -e
 
 echo "Installing completion scripts..."
 
 # Create the completion directory if it doesn't exist
-COMPLETION_DIR="$HOME/.bash_autocomplete.d"
+COMPLETION_DIR="$HOME/.bash_completion.d"
 mkdir -p "$COMPLETION_DIR"
 
 # Build worktree
@@ -35,10 +35,10 @@ fi
 
 # Check if .bashrc exists and add sourcing if not already present
 if [ -f "$HOME/.bashrc" ]; then
-    if ! grep -q "bash_autocomplete.d" "$HOME/.bashrc"; then
+    if ! grep -q "bash_completion.d" "$HOME/.bashrc"; then
         echo "" >> "$HOME/.bashrc"
         echo "# Source bash completion scripts" >> "$HOME/.bashrc"
-        echo "for file in ~/.bash_autocomplete.d/*; do" >> "$HOME/.bashrc"
+        echo "for file in ~/.bash_completion.d/*; do" >> "$HOME/.bashrc"
         echo "    [ -f \"\$file\" ] && source \"\$file\"" >> "$HOME/.bashrc"
         echo "done" >> "$HOME/.bashrc"
         echo "Added completion sourcing to ~/.bashrc"

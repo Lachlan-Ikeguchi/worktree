@@ -93,11 +93,6 @@ func main() {
 	}
 
 	if *mergeMode || *deleteMode {
-		if *deleteMode && !*confirm {
-			fmt.Fprintln(os.Stderr, "Error: --delete requires --confirm")
-			os.Exit(1)
-		}
-
 		if *remote || *existing || *delete {
 			fmt.Fprintln(os.Stderr, "Error: cannot use -r, -e, or -d with --merge or --delete")
 			os.Exit(1)
@@ -155,7 +150,8 @@ Options:
   -d             Delete the worktree directory at ../<branch> and clean up empty parent directories.
                  Mutually exclusive with -r, -e, --merge, --delete
   --merge        Merges the branch into master and clean up worktree (requires --confirm)
-  --delete       Delete the branch, remote branch, and worktree (requires --confirm)
+  --delete       Delete the branch, remote branch, and worktree
+                 Dry run by default; use --confirm to actually perform actions
   --confirm      Confirm the merge or delete operation (used with --merge, --delete)
   -h             Show this help message
 
@@ -187,7 +183,7 @@ Delete mode (--delete):
   1. Deletes the worktree directory at ../<branch> and empty parent directories
   2. Deletes the local branch
   3. Deletes the remote branch (origin/<branch>)
-  Note: Requires --confirm.`) 
+  Note: Dry-run by default, requires --confirm to actually perform actions`) 
 }
 
 func isWorktree() bool {
@@ -304,7 +300,7 @@ func mergeOrDelete(branch string, mergeMode, deleteMode, confirm bool) {
 			fmt.Println("Warning: remote branch may not exist or deletion failed.")
 		}
 	} else {
-		// Dry run
+		// Dry run - test if operations are actually possible
 		typeStr := "Delete"
 		flagStr := "--delete"
 		if mergeMode {
@@ -312,25 +308,113 @@ func mergeOrDelete(branch string, mergeMode, deleteMode, confirm bool) {
 			flagStr = "--merge"
 		}
 
-		// Validate worktree exists
-		if _, err := os.Stat(worktreePath); os.IsNotExist(err) {
-			fmt.Fprintf(os.Stderr, "Error: worktree directory not found at %s\n", worktreePath)
-			os.Exit(1)
+		fmt.Println("=== DRY RUN - Testing if operations are possible ===")
+		fmt.Println()
+		
+		allPossible := true
+		
+		if mergeMode {
+			// Test merge
+			fmt.Printf("Testing: %s %s onto %s\n", typeStr, branch, mainBranch)
+			cmd := exec.Command("git", "merge", "--no-commit", "--no-ff", branch)
+			if err := cmd.Run(); err != nil {
+				fmt.Printf("  ❌ FAIL: Merge would fail: %v\n", err)
+				allPossible = false
+			} else {
+				// Reset the merge (we only tested with --no-commit)
+				cmd := exec.Command("git", "merge", "--abort")
+				cmd.Run() // Ignore error, might not have started
+				fmt.Printf("  ✓ PASS: Merge is possible\n")
+			}
 		}
 
-		fmt.Println("=== DRY RUN - No changes will be made ===")
-		fmt.Println()
-		fmt.Println("Would perform the following:")
-		if deleteMode {
-			fmt.Printf("  1. Delete worktree at %s and clean up empty parent directories\n", worktreePath)
-			fmt.Printf("  2. Delete local branch %s\n", branch)
-			fmt.Printf("  3. Delete remote branch origin/%s\n", branch)
+		// Test worktree removal
+		fmt.Printf("Testing: Delete worktree at %s\n", worktreePath)
+		// Get absolute path for comparison
+		absWorktreePath, err := filepath.Abs(worktreePath)
+		if err != nil {
+			absWorktreePath = worktreePath
+		}
+		
+		if _, err := os.Stat(worktreePath); os.IsNotExist(err) {
+			fmt.Printf("  ❌ FAIL: Worktree directory not found at %s\n", worktreePath)
+			allPossible = false
 		} else {
-			fmt.Printf("  1. %s %s onto %s\n", typeStr, branch, mainBranch)
-			fmt.Printf("  2. Delete worktree at %s\n", worktreePath)
-			fmt.Printf("  3. Clean up empty parent directories\n")
-			fmt.Printf("  4. Delete local branch %s\n", branch)
-			fmt.Printf("  5. Delete remote branch origin/%s\n", branch)
+			// Check if worktree is valid and can be removed
+			cmd := exec.Command("git", "worktree", "list")
+			output, err := cmd.Output()
+			if err != nil {
+				fmt.Printf("  ❌ FAIL: Could not list worktrees: %v\n", err)
+				allPossible = false
+			} else {
+				worktreeList := string(output)
+				// Check both relative and absolute paths
+				if !strings.Contains(worktreeList, worktreePath) && !strings.Contains(worktreeList, absWorktreePath) {
+					fmt.Printf("  ❌ FAIL: Worktree at %s is not registered\n", worktreePath)
+					allPossible = false
+				} else {
+					fmt.Printf("  ✓ PASS: Worktree can be removed\n")
+				}
+			}
+		}
+
+		// Test local branch deletion
+		fmt.Printf("Testing: Delete local branch %s\n", branch)
+		if !branchExists(branch) {
+			fmt.Printf("  ❌ FAIL: Local branch '%s' does not exist\n", branch)
+			allPossible = false
+		} else {
+			// Check if branch is fully merged to main branch
+			// A branch can be safely deleted with -d if it's merged
+			// Otherwise, we need -D (force)
+			cmd := exec.Command("git", "branch", "--merged", mainBranch)
+			output, err := cmd.Output()
+			if err != nil {
+				fmt.Printf("  ❌ FAIL: Could not check merged branches: %v\n", err)
+				allPossible = false
+			} else {
+				branches := strings.Split(strings.TrimSpace(string(output)), "\n")
+				merged := false
+				for _, b := range branches {
+					// Remove leading * and spaces
+					b = strings.TrimLeft(b, " *")
+					if b == branch {
+						merged = true
+						break
+					}
+				}
+				if merged {
+					fmt.Printf("  ✓ PASS: Local branch can be deleted (fully merged)\n")
+				} else {
+					// Branch not merged, but can be force deleted
+					fmt.Printf("  ✓ PASS: Local branch can be deleted (with force -D)\n")
+				}
+			}
+		}
+
+		// Test remote branch deletion
+		fmt.Printf("Testing: Delete remote branch origin/%s\n", branch)
+		// First check if remote branch exists
+		cmd := exec.Command("git", "show-ref", "--quiet", "refs/remotes/origin/"+branch)
+		if err := cmd.Run(); err != nil {
+			// Remote branch doesn't exist - that's okay, just warn
+			fmt.Printf("  ⚠ WARNING: Remote branch origin/%s does not exist (will be skipped)\n", branch)
+		} else {
+			// Remote branch exists, test deletion
+			cmd := exec.Command("git", "push", "-d", "--dry-run", "origin", branch)
+			if err := cmd.Run(); err != nil {
+				fmt.Printf("  ❌ FAIL: Remote branch deletion would fail: %v\n", err)
+				allPossible = false
+			} else {
+				fmt.Printf("  ✓ PASS: Remote branch can be deleted\n")
+			}
+		}
+
+		fmt.Println()
+		if allPossible {
+			fmt.Println("✓ All operations are possible!")
+		} else {
+			fmt.Println("❌ Some operations would fail - see above for details")
 		}
 		fmt.Println()
 		fmt.Printf("To execute, run: worktree %s --confirm %s\n", flagStr, branch)

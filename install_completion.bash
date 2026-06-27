@@ -48,7 +48,7 @@ if [ -f "$HOME/.bashrc" ]; then
 else
     echo "Warning: ~/.bashrc not found, completion scripts installed but not auto-sourced"
     echo "To enable, add the following to your .bashrc:"
-    echo "    for file in ~/.bash_autocomplete.d/*; do"
+    echo "    for file in ~/.bash_completion.d/*; do"
     echo "        [ -f \"\$file\" ] && source \"\$file\""
     echo "    done"
 fi

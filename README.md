@@ -135,7 +135,7 @@ worktree --delete --confirm <branch-name>
 
 ## Autocompletion
 
-Both `worktree` and `clone` commands now support shell autocompletion through Cobra.
+Both `worktree` and `clone` commands support shell autocompletion through Cobra. The `worktree` command now includes **branch name autocompletion** - when you type `worktree <TAB><TAB>`, it will automatically suggest available local and remote branch names.
 
 ### Setup
 
@@ -180,6 +180,13 @@ View completion help:
 worktree completion --help
 clone completion --help
 ```
+
+### Branch Name Completion
+
+The `worktree` command provides intelligent branch name completion:
+- Tab completion after `worktree ` will show all available local and remote branches
+- Branches are filtered as you type (e.g., `worktree feat<TAB>` will only show branches starting with "feat")
+- Both local and remote branches are included, with duplicates removed
 
 ## Directory Structure
 

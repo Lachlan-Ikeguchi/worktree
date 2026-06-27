@@ -46,9 +46,10 @@ Delete branch and worktree (dry-run by default):
   worktree --delete --confirm <branch-name>`,
 	SilenceUsage: true,
 	Args: cobra.ArbitraryArgs,
+	ValidArgsFunction: branchNameCompletion,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		// Skip pre-run for help and completion commands
-		if cmd.Name() == "completion" || (len(args) > 0 && args[0] == "completion") {
+		// Skip pre-run for help, completion, and completion-related calls
+		if cmd.Name() == "completion" || (len(args) > 0 && args[0] == "completion") || (len(args) > 0 && args[0] == "__completeNoDesc") {
 			return
 		}
 		
@@ -280,6 +281,109 @@ func getMainBranch() (string, error) {
 func branchExists(branch string) bool {
 	cmd := exec.Command("git", "show-ref", "--quiet", "refs/heads/"+branch)
 	return cmd.Run() == nil
+}
+
+// getLocalBranches returns a list of all local branch names
+func getLocalBranches() ([]string, error) {
+	cmd := exec.Command("git", "branch", "--format=%(refname:short)")
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+	branches := strings.Split(strings.TrimSpace(string(output)), "\n")
+	// Filter out empty strings
+	var result []string
+	for _, b := range branches {
+		if b != "" {
+			result = append(result, b)
+		}
+	}
+	return result, nil
+}
+
+// getRemoteBranches returns a list of all remote branch names (without origin/ prefix)
+func getRemoteBranches() ([]string, error) {
+	cmd := exec.Command("git", "branch", "-r", "--format=%(refname:short)")
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+	branches := strings.Split(strings.TrimSpace(string(output)), "\n")
+	// Filter and remove origin/ prefix
+	seen := make(map[string]bool)
+	var result []string
+	for _, b := range branches {
+		if b != "" {
+			// Remove origin/ prefix
+			branch := strings.TrimPrefix(b, "origin/")
+			// Skip invalid branch names and deduplicate
+			if branch != "" && branch != "origin" && !seen[branch] {
+				seen[branch] = true
+				result = append(result, branch)
+			}
+		}
+	}
+	return result, nil
+}
+
+// branchNameCompletion returns available branch names for completion
+// Returns both local and remote branches to provide comprehensive completion
+func branchNameCompletion(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	// We only complete the first positional argument (branch name)
+	// If there are already positional args, don't provide completions
+	if len(args) > 0 {
+		// Check if the last arg is a flag (starts with -)
+		// If so, we might be completing a branch name after a flag
+		lastArg := args[len(args)-1]
+		if strings.HasPrefix(lastArg, "-") {
+			// Last argument is a flag, so we're completing the branch name
+			// This is fine, continue
+		} else {
+			// We already have a positional argument, don't complete
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+	}
+
+	// Get both local and remote branches
+	// This provides the most comprehensive completion experience
+	seen := make(map[string]bool)
+	var allBranches []string
+	
+	// Get local branches
+	localBranches, err := getLocalBranches()
+	if err == nil {
+		for _, b := range localBranches {
+			if !seen[b] {
+				seen[b] = true
+				allBranches = append(allBranches, b)
+			}
+		}
+	}
+
+	// Get remote branches
+	remoteBranches, err := getRemoteBranches()
+	if err == nil {
+		for _, b := range remoteBranches {
+			if !seen[b] {
+				seen[b] = true
+				allBranches = append(allBranches, b)
+			}
+		}
+	}
+
+	if len(allBranches) == 0 {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	// Filter branches based on the prefix being completed
+	var completions []string
+	for _, branch := range allBranches {
+		if strings.HasPrefix(branch, toComplete) {
+			completions = append(completions, branch)
+		}
+	}
+
+	return completions, cobra.ShellCompDirectiveNoFileComp
 }
 
 func mergeOrDelete(branch string, mergeMode, deleteMode, confirm, rebase bool) {

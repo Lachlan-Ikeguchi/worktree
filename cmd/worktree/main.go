@@ -216,6 +216,17 @@ The resulting structure will be:
 			os.Exit(1)
 		}
 
+		// Check if we're in the main repo (has .git/) not a worktree (has .git file)
+		if isWorktree() {
+			fmt.Fprintln(os.Stderr, "WARNING: must be called from the main repository, not a worktree")
+			os.Exit(1)
+		}
+
+		if !isGitRepo() {
+			fmt.Fprintln(os.Stderr, "WARNING: not a git repository")
+			os.Exit(1)
+		}
+
 		// Validate flag combinations
 		if mergeMode && deleteMode {
 			fmt.Fprintln(os.Stderr, "WARNING: cannot use --merge and --delete together")
@@ -298,6 +309,7 @@ PowerShell:
 	ValidArgs: []string{"bash", "zsh", "fish", "powershell"},
 	Args:     cobra.ExactValidArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		// Completion command doesn't need git repo checks
 		switch args[0] {
 		case "bash":
 			return rootCmd.GenBashCompletion(os.Stdout)

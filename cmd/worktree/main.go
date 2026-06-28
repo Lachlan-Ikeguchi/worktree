@@ -200,6 +200,17 @@ The resulting structure will be:
 
 	// Main run function for create/delete/merge operations
 	rootCmd.Run = func(cmd *cobra.Command, args []string) {
+		// Check if we're in the main repo (has .git/) not a worktree (has .git file)
+		if isWorktree() {
+			fmt.Fprintln(os.Stderr, "WARNING: must be called from the main repository, not a worktree")
+			os.Exit(1)
+		}
+
+		if !isGitRepo() {
+			fmt.Fprintln(os.Stderr, "WARNING: not a git repository")
+			os.Exit(1)
+		}
+
 		if len(args) == 0 {
 			cmd.Help()
 			os.Exit(1)
@@ -270,6 +281,7 @@ The resulting structure will be:
 }
 
 // completionCmd generates shell completion scripts
+// Note: Completion command doesn't need git repo checks
 var completionCmd = &cobra.Command{
 	Use:   "completion [bash|zsh|fish|powershell]",
 	Short: "Generate completion scripts for your shell",

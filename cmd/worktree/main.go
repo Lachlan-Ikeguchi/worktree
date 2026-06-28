@@ -615,7 +615,10 @@ func mergeOrDelete(branch string, mergeMode, deleteMode, confirm bool) {
 				commitOutput := strings.TrimSpace(string(output))
 				if commitOutput != "" {
 					commits := strings.Split(commitOutput, "\n")
-					fmt.Fprintf(os.Stderr, "%s: Branch %s is %d commit(s) behind %s\n", yellow("WARNING"), branch, len(commits), mainBranch)
+					fmt.Fprintf(os.Stderr, "%s: Branch %s is %d commit(s) behind %s\n", red("FAIL"), branch, len(commits), mainBranch)
+					if mergeMode {
+						allPossible = false
+					}
 				} else {
 					fmt.Printf("  %s: Branch %s is up to date with %s\n", green("PASS"), branch, mainBranch)
 				}

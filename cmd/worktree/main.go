@@ -10,6 +10,32 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// ANSI color codes
+const (
+	colorReset  = "\033[0m"
+	colorRed    = "\033[31m"
+	colorGreen  = "\033[32m"
+	colorYellow = "\033[33m"
+	colorBlue   = "\033[34m"
+)
+
+// Color helper functions
+func red(text string) string {
+	return colorRed + text + colorReset
+}
+
+func green(text string) string {
+	return colorGreen + text + colorReset
+}
+
+func yellow(text string) string {
+	return colorYellow + text + colorReset
+}
+
+func blue(text string) string {
+	return colorBlue + text + colorReset
+}
+
 var rootCmd = &cobra.Command{
 	Use:   "worktree",
 	Short: "Create and manage Git worktrees and clone repositories",
@@ -569,14 +595,14 @@ func mergeOrDelete(branch string, mergeMode, deleteMode, confirm bool) {
 			cmd := exec.Command("git", "log", "--oneline", fmt.Sprintf("%s..%s", mainBranch, branch))
 			output, err := cmd.Output()
 			if err != nil {
-				fmt.Printf("  WARNING: Could not check branch status: %v\n", err)
+				fmt.Printf("  %s: Could not check branch status: %v\n", yellow("WARNING"), err)
 			} else {
 				commitOutput := strings.TrimSpace(string(output))
 				if commitOutput == "" {
-					fmt.Printf("  INFO: Branch %s has no new commits (may be behind or equal to %s)\n", branch, mainBranch)
+					fmt.Printf("  %s: Branch %s has no new commits (may be behind or equal to %s)\n", blue("INFO"), branch, mainBranch)
 				} else {
 					commits := strings.Split(commitOutput, "\n")
-					fmt.Printf("  INFO: Branch %s has %d commit(s) ahead of %s\n", branch, len(commits), mainBranch)
+					fmt.Printf("  %s: Branch %s has %d commit(s) ahead of %s\n", blue("INFO"), branch, len(commits), mainBranch)
 				}
 			}
 
@@ -584,14 +610,14 @@ func mergeOrDelete(branch string, mergeMode, deleteMode, confirm bool) {
 			cmd = exec.Command("git", "log", "--oneline", fmt.Sprintf("%s..%s", branch, mainBranch))
 			output, err = cmd.Output()
 			if err != nil {
-				fmt.Printf("  WARNING: Could not check if branch is behind: %v\n", err)
+				fmt.Printf("  %s: Could not check if branch is behind: %v\n", yellow("WARNING"), err)
 			} else {
 				commitOutput := strings.TrimSpace(string(output))
 				if commitOutput != "" {
 					commits := strings.Split(commitOutput, "\n")
-					fmt.Fprintf(os.Stderr, "WARNING: Branch %s is %d commit(s) behind %s\n", branch, len(commits), mainBranch)
+					fmt.Fprintf(os.Stderr, "%s: Branch %s is %d commit(s) behind %s\n", yellow("WARNING"), branch, len(commits), mainBranch)
 				} else {
-					fmt.Printf("  PASS: Branch %s is up to date with %s\n", branch, mainBranch)
+					fmt.Printf("  %s: Branch %s is up to date with %s\n", green("PASS"), branch, mainBranch)
 				}
 			}
 
@@ -599,13 +625,13 @@ func mergeOrDelete(branch string, mergeMode, deleteMode, confirm bool) {
 			fmt.Printf("Testing: %s %s onto %s\n", typeStr, branch, mainBranch)
 			cmd = exec.Command("git", "merge", "--no-commit", "--no-ff", branch)
 			if err := cmd.Run(); err != nil {
-				fmt.Printf("  FAIL: Merge would fail: %v\n", err)
+				fmt.Printf("  %s: Merge would fail: %v\n", red("FAIL"), err)
 				allPossible = false
 			} else {
 				// Reset the merge (we only tested with --no-commit)
 				cmd := exec.Command("git", "merge", "--abort")
 				cmd.Run() // Ignore error, might not have started
-				fmt.Printf("  PASS: Merge is possible\n")
+				fmt.Printf("  %s: Merge is possible\n", green("PASS"))
 			}
 		}
 
@@ -618,23 +644,23 @@ func mergeOrDelete(branch string, mergeMode, deleteMode, confirm bool) {
 		}
 
 		if _, err := os.Stat(worktreePath); os.IsNotExist(err) {
-			fmt.Printf("  FAIL: Worktree directory not found at %s\n", worktreePath)
+			fmt.Printf("  %s: Worktree directory not found at %s\n", red("FAIL"), worktreePath)
 			allPossible = false
 		} else {
 			// Check if worktree is valid and can be removed
 			cmd := exec.Command("git", "worktree", "list")
 			output, err := cmd.Output()
 			if err != nil {
-				fmt.Printf("  FAIL: Could not list worktrees: %v\n", err)
+				fmt.Printf("  %s: Could not list worktrees: %v\n", red("FAIL"), err)
 				allPossible = false
 			} else {
 				worktreeList := string(output)
 				// Check both relative and absolute paths
 				if !strings.Contains(worktreeList, worktreePath) && !strings.Contains(worktreeList, absWorktreePath) {
-					fmt.Printf("  FAIL: Worktree at %s is not registered\n", worktreePath)
+					fmt.Printf("  %s: Worktree at %s is not registered\n", red("FAIL"), worktreePath)
 					allPossible = false
 				} else {
-					fmt.Printf("  PASS: Worktree can be removed\n")
+					fmt.Printf("  %s: Worktree can be removed\n", green("PASS"))
 				}
 			}
 		}
@@ -642,7 +668,7 @@ func mergeOrDelete(branch string, mergeMode, deleteMode, confirm bool) {
 		// Test local branch deletion
 		fmt.Printf("Testing: Delete local branch %s\n", branch)
 		if !branchExists(branch) {
-			fmt.Printf("  FAIL: Local branch '%s' does not exist\n", branch)
+			fmt.Printf("  %s: Local branch '%s' does not exist\n", red("FAIL"), branch)
 			allPossible = false
 		} else {
 			// Check if branch is fully merged to main branch
@@ -651,7 +677,7 @@ func mergeOrDelete(branch string, mergeMode, deleteMode, confirm bool) {
 			cmd := exec.Command("git", "branch", "--merged", mainBranch)
 			output, err := cmd.Output()
 			if err != nil {
-				fmt.Printf("  FAIL: Could not check merged branches: %v\n", err)
+				fmt.Printf("  %s: Could not check merged branches: %v\n", red("FAIL"), err)
 				allPossible = false
 			} else {
 				branches := strings.Split(strings.TrimSpace(string(output)), "\n")
@@ -665,10 +691,10 @@ func mergeOrDelete(branch string, mergeMode, deleteMode, confirm bool) {
 					}
 				}
 				if merged {
-					fmt.Printf("  PASS: Local branch can be deleted (fully merged)\n")
+					fmt.Printf("  %s: Local branch can be deleted (fully merged)\n", green("PASS"))
 				} else {
 					// Branch not merged, but can be force deleted
-					fmt.Printf("  PASS: Local branch can be deleted (with force -D)\n")
+					fmt.Printf("  %s: Local branch can be deleted (with force -D)\n", green("PASS"))
 				}
 			}
 		}
@@ -679,23 +705,23 @@ func mergeOrDelete(branch string, mergeMode, deleteMode, confirm bool) {
 		cmd := exec.Command("git", "show-ref", "--quiet", "refs/remotes/origin/"+branch)
 		if err := cmd.Run(); err != nil {
 			// Remote branch doesn't exist - that's okay, just warn
-			fmt.Printf("  WARNING: Remote branch origin/%s does not exist (will be skipped)\n", branch)
+			fmt.Printf("  %s: Remote branch origin/%s does not exist (will be skipped)\n", yellow("WARNING"), branch)
 		} else {
 			// Remote branch exists, test deletion
 			cmd := exec.Command("git", "push", "-d", "--dry-run", "origin", branch)
 			if err := cmd.Run(); err != nil {
-				fmt.Printf("  FAIL: Remote branch deletion would fail: %v\n", err)
+				fmt.Printf("  %s: Remote branch deletion would fail: %v\n", red("FAIL"), err)
 				allPossible = false
 			} else {
-				fmt.Printf("  PASS: Remote branch can be deleted\n")
+				fmt.Printf("  %s: Remote branch can be deleted\n", green("PASS"))
 			}
 		}
 
 		fmt.Println()
 		if allPossible {
-			fmt.Println("All operations are possible!")
+			fmt.Println(green("All operations are possible!"))
 		} else {
-			fmt.Println("Some operations would fail - see above for details")
+			fmt.Println(red("Some operations would fail - see above for details"))
 		}
 		fmt.Println()
 		fmt.Printf("To execute, run: worktree %s --confirm %s\n", flagStr, branch)

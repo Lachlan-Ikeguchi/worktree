@@ -48,25 +48,12 @@ Clone a repository:
 	Args:         cobra.ArbitraryArgs,
 	ValidArgsFunction: branchNameCompletion,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		// Skip pre-run for help, completion, clone, and completion-related calls
+		// Skip pre-run for help, completion, and completion-related calls
 		if cmd.Name() == "completion" || (len(args) > 0 && args[0] == "completion") || (len(args) > 0 && args[0] == "__completeNoDesc") {
 			return
 		}
-		// Skip pre-run for clone command
-		if len(args) > 0 && args[0] == "clone" {
-			return
-		}
-
-		// Check if we're in the main repo (has .git/) not a worktree (has .git file)
-		if isWorktree() {
-			fmt.Fprintln(os.Stderr, "WARNING: must be called from the main repository, not a worktree")
-			os.Exit(1)
-		}
-
-		if !isGitRepo() {
-			fmt.Fprintln(os.Stderr, "WARNING: not a git repository")
-			os.Exit(1)
-		}
+		// Note: Git repo checks are now done in individual command Run functions
+		// This allows clone command to work from non-git directories
 	},
 }
 
@@ -98,6 +85,17 @@ func init() {
 		Short: "List all worktrees",
 		Long:  "List all local or remote branches\n\nList all local branches:\n  worktree list\n\nList all remote branches:\n  worktree list -r",
 		Run: func(cmd *cobra.Command, args []string) {
+			// Check if we're in the main repo (has .git/) not a worktree (has .git file)
+			if isWorktree() {
+				fmt.Fprintln(os.Stderr, "WARNING: must be called from the main repository, not a worktree")
+				os.Exit(1)
+			}
+
+			if !isGitRepo() {
+				fmt.Fprintln(os.Stderr, "WARNING: not a git repository")
+				os.Exit(1)
+			}
+
 			var gitArgs []string
 			if listRemoteFlag {
 				gitArgs = []string{"branch", "-r"}
@@ -202,6 +200,17 @@ The resulting structure will be:
 
 	// Main run function for create/delete/merge operations
 	rootCmd.Run = func(cmd *cobra.Command, args []string) {
+		// Check if we're in the main repo (has .git/) not a worktree (has .git file)
+		if isWorktree() {
+			fmt.Fprintln(os.Stderr, "WARNING: must be called from the main repository, not a worktree")
+			os.Exit(1)
+		}
+
+		if !isGitRepo() {
+			fmt.Fprintln(os.Stderr, "WARNING: not a git repository")
+			os.Exit(1)
+		}
+
 		if len(args) == 0 {
 			cmd.Help()
 			os.Exit(1)
@@ -261,6 +270,7 @@ The resulting structure will be:
 }
 
 // completionCmd generates shell completion scripts
+// Note: Completion command doesn't need git repo checks
 var completionCmd = &cobra.Command{
 	Use:   "completion [bash|zsh|fish|powershell]",
 	Short: "Generate completion scripts for your shell",

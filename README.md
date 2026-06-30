@@ -26,6 +26,32 @@ This builds the Go binaries and installs them to `~/bin/`. Ensure `~/bin` is in 
 
 ## Usage
 
+### worktree init
+
+Initialize a new project with worktree structure:
+
+```bash
+worktree init <project-name>
+```
+
+Creates a project directory with a subdirectory named after the main branch (master/main/trunk) and initializes a git repository in that subdirectory.
+
+**Examples:**
+```bash
+worktree init myproject
+worktree init test_project
+```
+
+The resulting structure will be:
+```
+.
+└── myproject/
+    └── master/  (or main/trunk based on git config)
+        └── .git/ (newly initialized git repository)
+```
+
+The main branch name is determined from git config (`init.defaultBranch`) or defaults to 'master' if not configured.
+
 ### worktree clone
 
 Clone a Git repository:
@@ -123,6 +149,15 @@ worktree --delete --confirm <branch-name>
 | `--delete` | Delete branch, remote branch, and worktree |
 | `--confirm` | Confirm merge or delete operation (required for --merge and --delete) |
 | `-h, --help` | Show help message |
+
+## Subcommands
+
+| Command | Description |
+|---------|-------------|
+| `worktree init <project>` | Initialize a new project with worktree structure |
+| `worktree clone <repo-url>` | Clone a repository into project_name/[branch]/ structure |
+| `worktree list` | List all local branches |
+| `worktree list -r` | List all remote branches |
 
 ## Autocompletion
 

@@ -27,35 +27,45 @@ Technical architecture documentation for the worktree CLI tool. This document ex
 
 The worktree tool is a **Go-based CLI application** that wraps Git commands to provide enhanced worktree management. It follows a **command-pattern architecture** with Cobra as the CLI framework.
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                      worktree CLI                              │
-├─────────────────────────────────────────────────────────────┤
-│                                                                  │
-│  ┌─────────────────┐    ┌─────────────────┐    ┌───────────┐ │
-│  │   Cobra CLI      │    │   Git Integration│    │  Shell    │ │
-│  │   Framework      │    │   Layer         │    │  Comple-  │ │
-│  │                 │    │                 │    │  tion     │ │
-│  │ - Command Parse  │◄──►│ - exec.Command  │◄──►│ - Branch   │ │
-│  │ - Flag Handling  │    │ - Subprocess    │    │   Name    │ │
-│  │ - Help System   │    │   Execution      │    │   Completion│ │
-│  │ - Argument       │    │ - Error         │    │           │ │
-│  │   Validation    │    │   Handling       │    │           │ │
-│  └─────────────────┘    └─────────────────┘    └───────────┘ │
-│           ▲                  ▲                        ▲        │
-│           │                  │                        │        │
-│  ┌────────┴────────┐ ┌──────┴──────┐          ┌───────┴──────┐ │
-│  │  User Interface  │ │  Repository   │          │  Color     │ │
-│  │  Layer           │ │  State        │          │  Coding    │ │
-│  │                 │ │  Validation   │          │  System    │ │
-│  │ - stdin/stdout   │ │ - isGitRepo() │          │ - ANSI     │ │
-│  │ - Exit codes     │ │ - isWorktree()│          │   Colors   │ │
-│  │ - Interactive    │ └──────────────┘          └────────────┘ │
-│  │    Shell        │                                      │
-│  └─────────────────┘                                      │
-│                                                                  │
-└─────────────────────────────────────────────────────────────┘
-```
+The system is organized into several interacting layers:
+
+**User Interface Layer** handles all user interaction:
+- stdin/stdout for command input and output
+- Exit codes for success/failure signaling
+- Interactive shell sessions (automatically starts bash in new worktrees)
+
+**Cobra CLI Framework** provides the command infrastructure:
+- Command parsing and argument handling
+- Flag definition and processing
+- Built-in help system generation
+- Subcommand organization and hierarchical command structure
+
+**Git Integration Layer** executes all git operations:
+- Uses `exec.Command()` to run git commands as subprocesses
+- Handles command execution, output capture, and error processing
+- Provides abstraction over git operations like branch management, worktree operations, and merges
+
+**Shell Autocompletion System** provides intelligent command completion:
+- Branch name completion combining local and remote branches
+- Context-aware completion for different argument positions
+- Support for Bash, Zsh, Fish, and PowerShell
+- Deduplication and prefix filtering for efficient completion
+
+**Repository State Validation** ensures commands run in valid contexts:
+- `isGitRepo()` checks if current directory contains a .git directory (main repository)
+- `isWorktree()` checks if current directory contains a .git file (worktree)
+- Validates repository state before executing operations
+
+**Color Coding System** provides visual feedback:
+- ANSI color codes for PASS (green), FAIL (red), WARNING (yellow), INFO (blue)
+- Consistent color semantics across all output
+
+These layers work together with the following relationships:
+- User Interface connects to Cobra CLI for command processing
+- Cobra CLI calls Git Integration Layer for repository operations
+- Git Integration Layer depends on Repository State Validation
+- Shell Autocompletion interacts with both Cobra CLI (for command structure) and Git Integration (for branch data)
+- Color Coding is used by all layers for user feedback
 
 ### Technology Stack
 
@@ -80,122 +90,59 @@ github.com/lachlan/worktree
 
 ---
 
-## Architecture Diagrams
+## Command Flow Description
 
 ### Command Execution Flow
 
-```
-User Input: worktree feat/new-feature
-         │
-         ▼
-┌─────────────────────────────────────────────────┐
-│           Cobra Root Command                      │
-│         (rootCmd in main.go)                      │
-├─────────────────────────────────────────────────┤
-│  1. Parse command and arguments                 │
-│  2. Validate flag combinations                    │
-│  3. Execute PersistentPreRun (if applicable)      │
-│  4. Call rootCmd.Run() function                   │
-└─────────────────────────────────────────────────┘
-         │
-         ▼
-┌─────────────────────────────────────────────────┐
-│           Validation Phase                         │
-├─────────────────────────────────────────────────┤
-│  1. isWorktree() - Check if in worktree           │
-│  2. isGitRepo() - Check if in git repository      │
-│  3. Validate argument count                       │
-│  4. Validate flag exclusivity                     │
-│     (-r vs -e, merge vs delete, etc.)            │
-└─────────────────────────────────────────────────┘
-         │
-         ▼
-┌─────────────────────────────────────────────────┐
-│           Command Routing                          │
-├─────────────────────────────────────────────────┤
-│  If: mergeMode || deleteMode                      │
-│     → mergeOrDelete(branch, flags, confirm)       │
-│                                                 │
-│  If: deleteFlag                                 │
-│     → deleteWorktree(branch)                     │
-│                                                 │
-│  If: none of the above                           │
-│     → createWorktree(branch, remote, existing)  │
-└─────────────────────────────────────────────────┘
-         │
-         ▼
-┌─────────────────────────────────────────────────┐
-│           Action Execution                         │
-├─────────────────────────────────────────────────┤
-│  createWorktree():                                │
-│  - Create branch (if needed)                      │
-│  - Create worktree directory                      │
-│  - Start bash shell                               │
-│                                                  │
-│  deleteWorktree():                                │
-│  - Remove worktree with git worktree remove       │
-│  - Clean up empty parent directories              │
-│                                                  │
-│  mergeOrDelete():                                 │
-│  - Dry-run: validate all operations               │
-│  - Execute: perform merge/delete/cleanup          │
-└─────────────────────────────────────────────────┘
-```
+When a user runs `worktree feat/new-feature`, the command processing follows this sequence:
+
+1. **Cobra Root Command Processing** (rootCmd in main.go):
+   - Parse the command name and arguments
+   - Validate flag combinations are valid
+   - Execute PersistentPreRun function if applicable (validates git context)
+   - Call the rootCmd.Run() function to handle the command
+
+2. **Validation Phase**:
+   - `isWorktree()` - Check if current directory is a worktree (has .git as a file)
+   - `isGitRepo()` - Check if current directory is the main git repository (has .git as a directory)
+   - Validate argument count matches command requirements
+   - Validate flag exclusivity (e.g., -r vs -e, merge vs delete cannot be combined)
+
+3. **Command Routing**: Based on flags and arguments:
+   - If `mergeMode` OR `deleteMode` is true: call `mergeOrDelete(branch, flags, confirm)`
+   - If `deleteFlag` is true: call `deleteWorktree(branch)`
+   - If none of the above: call `createWorktree(branch, remote, existing)`
+
+4. **Action Execution**: The routed function performs its specific operations:
+   - `createWorktree()`: Creates the branch if needed, creates the worktree directory, and starts a bash shell in it
+   - `deleteWorktree()`: Removes the worktree using git worktree remove, and cleans up empty parent directories
+   - `mergeOrDelete()`: In dry-run mode validates all operations; with --confirm executes the merge/delete and cleanup
 
 ### Clone Command Flow
 
-```
-User Input: worktree clone https://github.com/user/repo.git
-         │
-         ▼
-┌─────────────────────────────────────────────────┐
-│           Clone Command Validation                │
-├─────────────────────────────────────────────────┤
-│  1. Validate repository URL argument exists     │
-│  2. Get current working directory                 │
-│  3. Extract project name from URL                 │
-│     - extractProjectName(url)                     │
-└─────────────────────────────────────────────────┘
-         │
-         ▼
-┌─────────────────────────────────────────────────┐
-│           Directory Setup                          │
-├─────────────────────────────────────────────────┤
-│  1. Create project directory                      │
-│     os.MkdirAll(projectPath, 0755)                 │
-│  2. Clone into temporary location                 │
-│     exec.Command("git clone", repoURL, projectName)│
-│     Dir: projectPath                              │
-└─────────────────────────────────────────────────┘
-         │
-         ▼
-┌─────────────────────────────────────────────────┐
-│           Branch Detection                         │
-├─────────────────────────────────────────────────┤
-│  1. Get current branch of cloned repo             │
-│     getCurrentBranch(clonedRepoPath)             │
-│     exec.Command("git rev-parse --abbrev-ref HEAD")│
-│  2. Try origin/HEAD first                          │
-│  3. Fallback to common branches (main, master, trunk)│
-│     getMainBranch()                               │
-└─────────────────────────────────────────────────┘
-         │
-         ▼
-┌─────────────────────────────────────────────────┐
-│           Directory Renaming                       │
-├─────────────────────────────────────────────────┤
-│  1. Rename cloned directory to branch name        │
-│     os.Rename(clonedRepoPath, branchPath)         │
-│     from: projectPath/projectName                 │
-│     to:   projectPath/branchName                   │
-└─────────────────────────────────────────────────┘
-         │
-         ▼
-┌─────────────────────────────────────────────────┐
-│           Success Output                           │
-│  "Successfully cloned <url> into <path>"          │
-└─────────────────────────────────────────────────┘
-```
+When a user runs `worktree clone https://github.com/user/repo.git`:
+
+1. **Clone Command Validation**:
+   - Validate that a repository URL argument was provided
+   - Get the current working directory as the base for the new project
+   - Extract the project name from the URL using `extractProjectName(url)` function
+
+2. **Directory Setup**:
+   - Create the project directory structure using `os.MkdirAll(projectPath, 0755)`
+   - Execute git clone into a temporary location within the project directory using `exec.Command("git clone", repoURL, projectName)` with Dir set to projectPath
+
+3. **Branch Detection**:
+   - Get the current branch of the cloned repository using `getCurrentBranch(clonedRepoPath)` which runs `exec.Command("git rev-parse --abbrev-ref HEAD")`
+   - First tries to read from origin/HEAD to get the explicit default branch
+   - Falls back to checking common branch names in order: main, master, trunk using `getMainBranch()`
+
+4. **Directory Renaming**:
+   - Rename the cloned repository directory from its default name to the detected branch name
+   - Uses `os.Rename(clonedRepoPath, branchPath)` where:
+     - from: `projectPath/projectName` (the cloned repo directory)
+     - to: `projectPath/branchName` (renamed to the branch name)
+
+5. **Success Output**: Prints "Successfully cloned <url> into <path>" confirming the operation
 
 ---
 

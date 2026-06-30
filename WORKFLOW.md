@@ -113,42 +113,28 @@ projects/
 
 ### The Worktree Lifecycle
 
-```
-                    ┌─────────────────┐
-                    │   IDEA/REQUIREMENT │
-                    └──────────┬────────┘
-                               │
-                               ▼
-                    ┌─────────────────┐
-                    │  worktree clone  │  ← New project
-                    │ worktree <name> │  ← Existing project
-                    └──────────┬────────┘
-                               │
-                               ▼
-                    ┌─────────────────┐
-                    │   DEVELOPMENT   │
-                    │   IN WORKTREE    │
-                    │   - Code changes │
-                    │   - Commit       │
-                    │   - Push         │
-                    └──────────┬────────┘
-                               │
-         ┌─────────────────────┴─────────────────────┐
-         │                                       │
-         ▼                                       ▼
-┌─────────────────┐               ┌─────────────────┐
-│  COMPLETED/FIXED │               │   ABANDONED     │
-└──────────┬────────┘               └──────────┬────────┘
-           │                                   │
-           ▼                                   ▼
-┌─────────────────┐               ┌─────────────────┐
-│ worktree --merge │               │ worktree --delete│
-│ --confirm <name> │               │ --confirm <name> │
-└─────────────────┘               └─────────────────┘
-         │                                       │
-         ▼                                       ▼
-    [Changes merged to main]           [Branch and worktree removed]
-```
+The worktree lifecycle follows a clear flow from idea to completion or abandonment:
+
+1. **Idea/Requirement**: A new feature, bug fix, or task is identified that requires isolated development
+
+2. **Setup**: Create the development environment
+   - For new projects: `worktree clone <url>` creates the repository structure
+   - For existing projects: `worktree <name>` or `worktree -r <name>` or `worktree -e <name>` creates the worktree
+
+3. **Development in Worktree**: Active development happens in the isolated worktree environment
+   - Make code changes
+   - Commit changes to the branch
+   - Push changes to remote (for collaboration)
+
+4. **Completion Path** (for successful work):
+   - When work is complete and tested: `worktree --merge --confirm <name>`
+   - This merges changes into main/master, removes the worktree directory, cleans up empty parent directories, deletes local branch, and deletes remote branch
+   - Result: Changes are merged to main
+
+5. **Abandonment Path** (for discarded work):
+   - When work is abandoned or no longer needed: `worktree --delete --confirm <name>`
+   - This removes the worktree directory, cleans up empty parent directories, deletes local branch, and deletes remote branch
+   - Result: Branch and worktree are completely removed, no merge occurs
 
 ---
 
@@ -912,44 +898,23 @@ After merging login feature:
                 └── .git (file)
 ```
 
-### Command Flow Diagram
+### Command Flow Description
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                      USER ACTIONS                              │
-├─────────────────────────────────────────────────────────────┤
-│                                                                  │
-│  Clone: worktree clone <url>                                    │
-│       ↓                                                    │
-│  ┌─────────────────┐                                       │
-│  │ Create project  │                                       │
-│  │ directory       │                                       │
-│  └────────┬────────┘                                       │
-│           ↓                                                │
-│  ┌─────────────────┐                                       │
-│  │ Clone repo into │──────────────────┐                    │
-│  │ temp directory  │                  │                    │
-│  └────────┬────────┘                  ↓                    │
-│           ↓                   ┌─────────────────┐          │
-│  ┌─────────────────┐        │ Get default     │          │
-│  │ Determine       │        │ branch name     │          │
-│  │ project name    │        └────────┬────────┘          │
-│  └────────┬────────┘                 ↓                    │
-│           └─────────────────────────┼─────────────────────┘
-│                                     ↓
-│                          ┌─────────────────┐
-│                          │ Rename directory │
-│                          │ to branch name  │
-│                          └────────┬────────┘
-│                                   ↓
-│                          ┌─────────────────┐
-│                          │ SUCCESS: Cloned  │
-│                          │ into project/    │
-│                          │ branch/          │
-│                          └─────────────────┘
-│                                                                  │
-└─────────────────────────────────────────────────────────────┘
-```
+For the clone command `worktree clone <url>`, the processing flow is:
+
+1. User provides repository URL as input
+
+2. **Create project directory**: The tool creates a directory named after the project extracted from the URL
+
+3. **Clone repo into temp directory**: The repository is cloned into a temporary directory within the project directory
+
+4. Two parallel operations occur:
+   - **Determine project name**: The `extractProjectName(url)` function parses the URL to extract the repository name
+   - **Get default branch name**: The tool determines the repository's default branch by first checking origin/HEAD, then falling back to common names (main, master, trunk)
+
+5. **Rename directory**: The cloned repository directory is renamed from its temporary name to the detected branch name
+
+6. **Success output**: The tool prints "SUCCESS: Cloned into project/branch/" confirming the operation completed
 
 ---
 

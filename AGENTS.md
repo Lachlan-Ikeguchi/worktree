@@ -2,6 +2,34 @@
 
 This file provides guidance for AI agents (like Mistral Vibe) when working with the worktree repository.
 
+## AGENTS.md Maintenance (Living Document)
+
+**This is a LIVING DOCUMENT** maintained by AI agents. You MUST update this file based on user feedback and new learnings.
+
+### Agent Responsibilities
+
+- **MUST**: Update this file after every user interaction that provides new information or feedback
+- **MUST**: Record all user preferences, constraints, and learnings
+- **MUST**: Remove outdated, incorrect, or superseded information
+- **MUST**: Review this file at the start of each session to understand current requirements
+- **SHOULD**: Add entries to the Update Log when making changes
+
+### Purpose
+
+This file serves as:
+- **Persistent memory** of user preferences and requirements across agent sessions
+- **Process documentation** for how agents should work in this repository
+- **Knowledge base** of what works, what doesn't, and what the user expects
+- **Feedback loop** to continuously improve agent behavior
+
+### Update Process
+
+When the user provides feedback:
+1. Analyze what the user is communicating (preference, constraint, correction, etc.)
+2. Update the relevant section of this AGENTS.md file
+3. Add an entry to the Update Log at the bottom of this file
+4. Commit the changes with a descriptive message
+
 ## Repository Overview
 
 **Name**: worktree  
@@ -211,7 +239,36 @@ current-directory/
             └── ...
 ```
 
-**Key Insight**: Worktrees are created at `../<branch-name>` relative to the main repository. This means if your main repo is at `/path/to/project/main`, a worktree for `feat/test` will be at `/path/to/project/feat/test`.
+**Key Insight**: You are working in a worktree checked out to `project/[branch name]`. The actual git repository is at `project/[master/main]` which contains the `.git` **directory**. Worktrees have `.git` as a **file** (symlink to main repo), while the main repo has `.git` as a **directory**. This distinction is critical for understanding the worktree tool's behavior.
+
+## Agent Learnings and Guidelines
+
+### Documentation Style
+
+Based on user feedback, agents must follow these documentation guidelines:
+
+✅ **DO**: 
+- Use **text descriptions** for complex concepts, relationships, and flows
+- Explain diagrams and architecture using clear, descriptive paragraphs
+- Use **bullet points** and **numbered lists** for step-by-step processes
+- Keep **simple tree structures** (├──, └──, │) as they provide useful hierarchy visualization
+
+❌ **DON'T**: 
+- Create **ASCII art** or **box diagrams** in documentation
+- Use complex visual diagrams that rely on box-drawing characters (┌, ┐, ┘, │, ├, etc.)
+- Assume readers can parse visual layouts - use text descriptions instead
+
+### Git Workflow
+
+✅ **DO**: 
+- Create **conventional commits** with each **logical unit of work**
+- Use descriptive commit messages that explain the what and why
+- Make atomic commits that represent a single logical change
+- Commit frequently to maintain a clean history
+
+❌ **DON'T**: 
+- Bundle unrelated changes into a single commit
+- Use vague commit messages like "fixed stuff" or "updated files"
 
 ## Shell Autocompletion
 
@@ -395,4 +452,20 @@ If you're an AI agent and encounter issues:
 
 ---
 
-*This AGENTS.md file provides comprehensive guidance for AI agents working with the worktree repository. Last updated: 2026-06-30*
+## Update Log
+
+This section records changes made to AGENTS.md to maintain a history of learning and refinement.
+
+| Date | Change | Based On | Commit |
+|------|--------|----------|--------|
+| 2026-06-30 | Initial AGENTS.md creation with comprehensive agent guidance | User request | 21816b6 |
+| 2026-06-30 | Added living document instructions - AGENTS.md now self-maintaining | User feedback: "AGENTS.md should be a living document" | Pending |
+| 2026-06-30 | Added documentation style guidelines - no ASCII art, use text descriptions | User feedback: "get rid of those ascii boarders... put it in the AGENTS.md to not create those" | Pending |
+| 2026-06-30 | Added git workflow guidelines - conventional commits per logical work unit | User feedback: "add that it should create a conventional commit with each logical units of work" | Pending |
+| 2026-06-30 | Added worktree structure explanation - project/[branch name] with project/[master/main] as actual repo | User feedback: "Explain that they are in a worktree checked out to the project/[branch name] with project/[master/main] being the actual repo" | Pending |
+| 2026-06-30 | Replaced all ASCII diagrams in ARCHITECTURE.md with text descriptions | User feedback: "get rid of those ascii boarders... replace with text explaing it in detail" | Pending |
+| 2026-06-30 | Replaced all ASCII diagrams in WORKFLOW.md with text descriptions | User feedback: "get rid of those ascii boarders... replace with text explaing it in detail" | Pending |
+
+---
+
+*This AGENTS.md file provides comprehensive guidance for AI agents working with the worktree repository. This is a living document - agents MUST update it based on user feedback.*

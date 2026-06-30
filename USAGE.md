@@ -6,6 +6,7 @@ Comprehensive usage guide for the worktree CLI tool. This document provides deta
 
 - [Quick Start](#quick-start)
 - [Command Overview](#command-overview)
+- [worktree init](#worktree-init)
 - [worktree clone](#worktree-clone)
 - [worktree (create)](#worktree-create)
 - [worktree list](#worktree-list)
@@ -70,6 +71,7 @@ worktree --merge --confirm feat/new-feature
 | Command | Description | Destination |
 |---------|-------------|-------------|
 | `worktree clone <url>` | Clone a repository into organized structure | Creates directory structure |
+| `worktree init <name>` | Initialize a new project with worktree structure | Creates project/[branch]/ with .git |
 | `worktree <branch>` | Create new branch and worktree | `../<branch>/` |
 | `worktree -r <branch>` | Create worktree from remote branch | `../<branch>/` |
 | `worktree -e <branch>` | Create worktree from existing local branch | `../<branch>/` |
@@ -81,6 +83,83 @@ worktree --merge --confirm feat/new-feature
 | `worktree --delete <branch>` | Dry-run delete validation | stdout |
 | `worktree --delete --confirm <branch>` | Delete branch and worktree | Modifies git repo |
 | `worktree completion <shell>` | Generate shell completion script | stdout |
+
+---
+
+## worktree init
+
+Initialize a new project with the worktree directory structure.
+
+### Syntax
+
+```bash
+worktree init <project-name>
+```
+
+### Description
+
+Creates a new project directory with a subdirectory for the main branch, and initializes a Git repository in that subdirectory. This is useful when starting a new project from scratch rather than cloning an existing repository.
+
+The resulting structure will be:
+```
+current-directory/
+└── <project-name>/
+    └── <main-branch>/
+        └── .git/  (newly initialized git repository)
+```
+
+### How the Main Branch is Determined
+
+The main branch name is determined in the following order:
+1. From git config `init.defaultBranch` setting
+2. Defaults to `master` if not configured
+
+### Examples
+
+```bash
+# Initialize a new project
+worktree init myproject
+
+# Initialize another project
+worktree init test_project
+```
+
+### How It Works
+
+1. **Validate project name**: Ensures the project name is provided and the directory doesn't already exist
+2. **Get default branch name**: Uses `git config --get init.defaultBranch` or defaults to "master"
+3. **Create project directory**: Creates `./<project-name>/` 
+4. **Create branch directory**: Creates `<project-name>/<main-branch>/`
+5. **Initialize git repository**: Runs `git init` in the branch directory
+6. **Output success**: Prints the created structure
+
+### Expected Output
+
+```
+Using default branch: master
+Successfully initialized project 'myproject' with structure:
+  myproject/
+  └── master/
+      └── .git/
+```
+
+### Common Issues
+
+| Issue | Solution |
+|-------|----------|
+| `Error: project directory '<name>' already exists` | Choose a different project name or remove the existing directory |
+| `Error: failed to initialize git repository` | Check git is installed and working |
+
+### When to Use
+
+Use `worktree init` when:
+- Starting a new project from scratch
+- You don't have an existing repository to clone
+- You want the worktree directory structure without cloning
+
+Use `worktree clone` when:
+- You have an existing repository to work with
+- You want to clone a remote repository
 
 ---
 

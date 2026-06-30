@@ -187,10 +187,11 @@ cmd/worktree/main.go
 ├── main() Function (Lines 354-359)
 │   └── Execute rootCmd
 │
-├── Utility Functions (Lines 361-860)
+├── Utility Functions (Lines 361-952)
 │   ├── isWorktree() bool
 │   ├── isGitRepo() bool
 │   ├── getMainBranch() (string, error)
+│   ├── getDefaultBranchName() string
 │   ├── branchExists(branch string) bool
 │   ├── getLocalBranches() ([]string, error)
 │   ├── getRemoteBranches() ([]string, error)
@@ -217,9 +218,9 @@ cmd/worktree/main.go
 | init() Function | 128 | 14.9% |
 | main() Function | 5 | 0.6% |
 | Command Execution Logic | ~270 | 31.4% |
-| Utility Functions | ~300 | 34.9% |
+| Utility Functions | ~340 | 34.9% |
 | Completion System | 54 | 6.3% |
-| **Total** | **860** | **100%** |
+| **Total** | **~910** | **100%** |
 
 ---
 
@@ -229,6 +230,9 @@ cmd/worktree/main.go
 
 ```
 worktree (root)
+├── init <project-name>
+│   └── Initializes new project with worktree structure
+│
 ├── clone <repository-url>
 │   └── Validates and clones repository into structured directory
 │
@@ -309,6 +313,8 @@ Mutual Exclusions:
 
 | Git Command | Go Implementation | Purpose |
 |-------------|-------------------|---------|
+| `git init` | `exec.Command("git", "init")` | Initialize new repository |
+| `git config` | `exec.Command("git", "config", "--get", "init.defaultBranch")` | Get default branch configuration |
 | `git branch` | `exec.Command("git", "branch", ...)` | List branches |
 | `git worktree add` | `exec.Command("git", "worktree", "add", ...)` | Create worktree |
 | `git worktree remove` | `exec.Command("git", "worktree", "remove", ...)` | Remove worktree |

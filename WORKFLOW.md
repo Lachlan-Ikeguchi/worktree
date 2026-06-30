@@ -190,6 +190,58 @@ code .
 3. Set up environment → ready to develop
 ```
 
+### New Project Initialization
+
+**Scenario**: You're starting a new project from scratch (not cloning an existing repository).
+
+#### Step 1: Initialize Project with Worktree Structure
+
+```bash
+# Navigate to your projects directory
+cd ~/Projects
+
+# Initialize a new project with worktree structure
+worktree init my-new-project
+
+# This creates:
+# ~/Projects/my-new-project/master/
+#   └── .git/ (newly initialized git repository)
+```
+
+#### Step 2: Set Up the Project
+
+```bash
+# Navigate to the main repository
+cd my-new-project/master
+
+# Initialize project files (create README, etc.)
+echo "# My New Project" > README.md
+
+# Add and commit initial files
+git add README.md
+git commit -m "Initial commit"
+```
+
+#### Step 3: Set Up Development Environment
+
+```bash
+# Install dependencies (project-specific)
+npm init -y  # if Node.js
+# etc.
+
+# Configure IDE/editors
+code .
+```
+
+**Workflow Summary**:
+```
+1. Initialize project → creates project/[branch]/ with .git
+2. Navigate to main → set up initial files
+3. Commit initial state → ready to develop
+```
+
+**Note**: Use `worktree init` for new projects, `worktree clone` for existing repositories.
+
 ---
 
 ## Feature Development Workflow

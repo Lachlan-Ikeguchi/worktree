@@ -459,12 +459,12 @@ This section records changes made to AGENTS.md to maintain a history of learning
 | Date | Change | Based On | Commit |
 |------|--------|----------|--------|
 | 2026-06-30 | Initial AGENTS.md creation with comprehensive agent guidance | User request | 21816b6 |
-| 2026-06-30 | Added living document instructions - AGENTS.md now self-maintaining | User feedback: "AGENTS.md should be a living document" | Pending |
-| 2026-06-30 | Added documentation style guidelines - no ASCII art, use text descriptions | User feedback: "get rid of those ascii boarders... put it in the AGENTS.md to not create those" | Pending |
-| 2026-06-30 | Added git workflow guidelines - conventional commits per logical work unit | User feedback: "add that it should create a conventional commit with each logical units of work" | Pending |
-| 2026-06-30 | Added worktree structure explanation - project/[branch name] with project/[master/main] as actual repo | User feedback: "Explain that they are in a worktree checked out to the project/[branch name] with project/[master/main] being the actual repo" | Pending |
-| 2026-06-30 | Replaced all ASCII diagrams in ARCHITECTURE.md with text descriptions | User feedback: "get rid of those ascii boarders... replace with text explaing it in detail" | Pending |
-| 2026-06-30 | Replaced all ASCII diagrams in WORKFLOW.md with text descriptions | User feedback: "get rid of those ascii boarders... replace with text explaing it in detail" | Pending |
+| 2026-06-30 | Added living document instructions - AGENTS.md now self-maintaining | User feedback: "AGENTS.md should be a living document" | 72d3030 |
+| 2026-06-30 | Added documentation style guidelines - no ASCII art, use text descriptions | User feedback: "get rid of those ascii boarders... put it in the AGENTS.md to not create those" | 72d3030 |
+| 2026-06-30 | Added git workflow guidelines - conventional commits per logical work unit | User feedback: "add that it should create a conventional commit with each logical units of work" | 72d3030 |
+| 2026-06-30 | Added worktree structure explanation - project/[branch name] with project/[master/main] as actual repo | User feedback: "Explain that they are in a worktree checked out to the project/[branch name] with project/[master/main] being the actual repo" | 72d3030 |
+| 2026-06-30 | Replaced all ASCII diagrams in ARCHITECTURE.md with text descriptions | User feedback: "get rid of those ascii boarders... replace with text explaing it in detail" | 72d3030 |
+| 2026-06-30 | Replaced all ASCII diagrams in WORKFLOW.md with text descriptions | User feedback: "get rid of those ascii boarders... replace with text explaing it in detail" | 72d3030 |
 
 ---
 

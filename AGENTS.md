@@ -465,7 +465,7 @@ This section records changes made to AGENTS.md to maintain a history of learning
 | 2026-06-30 | Added worktree structure explanation - project/[branch name] with project/[master/main] as actual repo | User feedback: "Explain that they are in a worktree checked out to the project/[branch name] with project/[master/main] being the actual repo" | 72d3030 |
 | 2026-06-30 | Replaced all ASCII diagrams in ARCHITECTURE.md with text descriptions | User feedback: "get rid of those ascii boarders... replace with text explaing it in detail" | 72d3030 |
 | 2026-06-30 | Replaced all ASCII diagrams in WORKFLOW.md with text descriptions | User feedback: "get rid of those ascii boarders... replace with text explaing it in detail" | 72d3030 |
-| 2026-06-30 | Added missing `worktree init` command documentation to USAGE.md, WORKFLOW.md, ARCHITECTURE.md | User feedback: "is the documentation up to date?" → No, init command was missing | Pending |
+| 2026-06-30 | Added missing `worktree init` command documentation to USAGE.md, WORKFLOW.md, ARCHITECTURE.md | User feedback: "is the documentation up to date?" → No, init command was missing | 205b110 |
 
 ---
 

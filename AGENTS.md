@@ -104,6 +104,23 @@ go run ./cmd/worktree completion bash > /tmp/worktree_completion
 go clean
 ```
 
+### Debug Build Cleanup
+
+**Important**: Always clean up debug builds before committing:
+
+```bash
+# Remove debug binary from repository root
+rm -f worktree
+
+# Or use git clean to remove all untracked files
+git clean -fd
+```
+
+**Agent Responsibilities**:
+- **MUST** remove debug binaries (`worktree`) from the repository before committing
+- **MUST** check `git status` before committing to ensure no unintended files are included
+- **SHOULD** use `git clean -fd` or explicitly remove debug builds after testing
+
 ## Code Structure and Conventions
 
 ```
@@ -465,6 +482,7 @@ This section records changes made to AGENTS.md to maintain a history of learning
 | 2026-06-30 | Replaced all ASCII diagrams in ARCHITECTURE.md with text descriptions | User feedback: "get rid of those ascii boarders... replace with text explaing it in detail" | 72d3030 |
 | 2026-06-30 | Replaced all ASCII diagrams in WORKFLOW.md with text descriptions | User feedback: "get rid of those ascii boarders... replace with text explaing it in detail" | 72d3030 |
 | 2026-06-30 | Added missing `worktree init` command documentation to USAGE.md, WORKFLOW.md, ARCHITECTURE.md | User feedback: "is the documentation up to date?" → No, init command was missing | 205b110 |
+| 2026-07-19 | Added debug build cleanup guidelines - MUST remove debug binaries before committing | User feedback: "Take necessary measures to remember to delete debug builds" | de3cb7c |
 
 ---
 

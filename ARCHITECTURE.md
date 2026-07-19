@@ -170,10 +170,9 @@ cmd/worktree/main.go
 │   ├── yellow(text string) string
 │   └── blue(text string) string
 │
-├── Global Variables (Lines 39-97)
+├── Global Variables (Lines 39-91)
 │   ├── rootCmd *cobra.Command
-│   ├── Flags: remoteFlag, existingFlag, deleteFlag, mergeMode, deleteMode, confirmFlag
-│   └── listRemoteFlag bool
+│   └── Flags: remoteFlag, existingFlag, deleteFlag, mergeMode, deleteMode, confirmFlag
 │
 ├── init() Function (Lines 99-226)
 │   ├── Root command configuration
@@ -236,9 +235,8 @@ worktree (root)
 ├── clone <repository-url>
 │   └── Validates and clones repository into structured directory
 │
-├── list [flags]
-│   └── Lists branches (local or remote)
-│       └── -r, --remote: List remote branches
+├── list
+│   └── Lists all branches (local and remote)
 │
 ├── <branch> [flags]
 │   ├── (no flags): Create new branch and worktree
@@ -272,8 +270,7 @@ Global Flags (applicable to root command):
 ├── --delete: Delete branch and worktree
 └── --confirm: Confirm destructive operation
 
-List Command Flags (applicable to list subcommand):
-└── -r, --remote: List remote branches
+List Command Flags: None (the list command has no flags)
 
 Mutual Exclusions:
 ├── -r and -e cannot be used together

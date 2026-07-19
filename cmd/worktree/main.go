@@ -51,11 +51,8 @@ Create a worktree from an existing remote branch:
 Create a worktree from an existing local branch:
   worktree -e <branch-name>
 
-List all local branches:
+List all branches (local and remote):
   worktree list
-
-List all remote branches:
-  worktree list -r
 
 Delete a worktree directory:
   worktree -d <branch-name>
@@ -93,8 +90,7 @@ var (
 	confirmFlag   bool
 )
 
-// Flags for list command
-var listRemoteFlag bool
+
 
 func init() {
 	// Global flags for create/delete/merge operations
@@ -109,7 +105,7 @@ func init() {
 	listCmd := &cobra.Command{
 		Use:   "list",
 		Short: "List all worktrees",
-		Long:  "List all local or remote branches\n\nList all local branches:\n  worktree list\n\nList all remote branches:\n  worktree list -r",
+		Long:  "List all branches (local and remote)",
 		Run: func(cmd *cobra.Command, args []string) {
 			// Check if we're in the main repo (has .git/) not a worktree (has .git file)
 			if isWorktree() {
@@ -122,12 +118,7 @@ func init() {
 				os.Exit(1)
 			}
 
-			var gitArgs []string
-			if listRemoteFlag {
-				gitArgs = []string{"branch", "-r"}
-			} else {
-				gitArgs = []string{"branch"}
-			}
+			gitArgs := []string{"branch", "-a"}
 			cmdExec := exec.Command("git", gitArgs...)
 			cmdExec.Stdout = os.Stdout
 			cmdExec.Stderr = os.Stderr
@@ -137,7 +128,6 @@ func init() {
 			}
 		},
 	}
-	listCmd.Flags().BoolVarP(&listRemoteFlag, "remote", "r", false, "List all remote branches")
 	rootCmd.AddCommand(listCmd)
 
 	// Clone command - moved from separate clone script

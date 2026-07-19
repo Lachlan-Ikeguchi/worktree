@@ -167,8 +167,8 @@ cd new-project/main
 git status
 worktree list
 
-# View all branches
-worktree list -r
+# View all branches (local and remote)
+worktree list
 ```
 
 #### Step 3: Set Up Development Environment
@@ -491,8 +491,8 @@ worktree --merge --confirm docs/api-guide
 # List all branches
 worktree list
 
-# List remote branches to see what teammates are working on
-worktree list -r
+# List all branches (local and remote) to see what teammates are working on
+worktree list
 
 # See active worktrees
 git worktree list
@@ -575,8 +575,8 @@ worktree clone https://github.com/company/existing-project.git
 ```bash
 cd existing-project/main
 
-# See what branches exist
-worktree list -r
+# See what branches exist (local and remote)
+worktree list
 
 # Create worktrees for branches you need to work on
 worktree -r feat/current-feature

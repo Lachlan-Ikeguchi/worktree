@@ -96,14 +96,9 @@ worktree -e <branch-name>
 
 #### List branches
 
-List all local branches:
+List all branches (local and remote):
 ```bash
 worktree list
-```
-
-List all remote branches:
-```bash
-worktree list -r
 ```
 
 #### Delete a worktree
@@ -156,8 +151,7 @@ worktree --delete --confirm <branch-name>
 |---------|-------------|
 | `worktree init <project>` | Initialize a new project with worktree structure |
 | `worktree clone <repo-url>` | Clone a repository into project_name/[branch]/ structure |
-| `worktree list` | List all local branches |
-| `worktree list -r` | List all remote branches |
+| `worktree list` | List all branches (local and remote) |
 
 ## Autocompletion
 

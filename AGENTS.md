@@ -186,9 +186,8 @@ The worktree tool follows and enforces these Git workflow patterns:
    - Creates worktree from existing local branch
    - Does not create new branch
 
-5. **List Branches**: `worktree list [-r]`
-   - Lists local branches (default)
-   - `-r` flag lists remote branches
+5. **List Branches**: `worktree list`
+   - Lists all branches (local and remote)
 
 6. **Merge and Cleanup**: `worktree --merge --confirm <branch-name>`
    - Merges branch into main/master

@@ -75,8 +75,7 @@ worktree --merge --confirm feat/new-feature
 | `worktree <branch>` | Create new branch and worktree | `../<branch>/` |
 | `worktree -r <branch>` | Create worktree from remote branch | `../<branch>/` |
 | `worktree -e <branch>` | Create worktree from existing local branch | `../<branch>/` |
-| `worktree list` | List all local branches | stdout |
-| `worktree list -r` | List all remote branches | stdout |
+| `worktree list` | List all branches (local and remote) | stdout |
 | `worktree -d <branch>` | Delete worktree directory only | Removes directory |
 | `worktree --merge <branch>` | Dry-run merge validation | stdout |
 | `worktree --merge --confirm <branch>` | Execute merge and cleanup | Modifies git repo |
@@ -354,35 +353,23 @@ worktree list [flags]
 
 ### Flags
 
-| Flag | Short | Description |
-|------|-------|-------------|
-| `--remote` | `-r` | List remote branches instead of local |
+The `worktree list` command does not have any flags. It always lists all branches (local and remote).
 
 ### Examples
 
 ```bash
-# List all local branches
+# List all branches (local and remote)
 worktree list
-
-# List all remote branches
-worktree list -r
-
-# List with remote flag
-worktree list --remote
 ```
 
 ### Output
 
-**Local branches**:
+**All branches** (local and remote):
 ```
   main
   feat/new-feature
   fix/bug-123
   docs/readme
-```
-
-**Remote branches** (with `-r`):
-```
   origin/main
   origin/feat/new-feature
   origin/feat/existing
@@ -391,8 +378,7 @@ worktree list --remote
 
 ### How It Works
 
-- **Local branches**: Runs `git branch --format=%(refname:short)`
-- **Remote branches**: Runs `git branch -r --format=%(refname:short)`
+- **All branches**: Runs `git branch -a`
 
 ### Common Issues
 
@@ -981,7 +967,7 @@ ls -la .git  # Should be directory, not file
 1. **Large repositories**:
    - Dry-run operations may be slow
    - Branch completion may be slow
-   - Consider using `-r` flag to list only remote branches
+   - Tab completion filters as you type
 
 2. **Many branches**:
    - Use specific branch name patterns

@@ -483,6 +483,7 @@ This section records changes made to AGENTS.md to maintain a history of learning
 | 2026-06-30 | Replaced all ASCII diagrams in WORKFLOW.md with text descriptions | User feedback: "get rid of those ascii boarders... replace with text explaing it in detail" | 72d3030 |
 | 2026-06-30 | Added missing `worktree init` command documentation to USAGE.md, WORKFLOW.md, ARCHITECTURE.md | User feedback: "is the documentation up to date?" → No, init command was missing | 205b110 |
 | 2026-07-19 | Added debug build cleanup guidelines - MUST remove debug binaries before committing | User feedback: "Take necessary measures to remember to delete debug builds" | de3cb7c |
+| 2026-07-25 | Added ahead/behind commit check to --delete dry-run mode | User request: "make it so that it checks by how much the branch is ahead on the --delete flag dry-run" | HEAD |
 
 ---
 

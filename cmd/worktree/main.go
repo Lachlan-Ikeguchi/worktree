@@ -654,41 +654,41 @@ func mergeOrDelete(branch string, mergeMode, deleteMode, confirm bool) {
 		
 		allPossible := true
 
+		// Check branch status relative to main (for both merge and delete modes)
+		fmt.Printf("Checking: Branch %s status relative to %s\n", branch, mainBranch)
+		cmd := exec.Command("git", "log", "--oneline", fmt.Sprintf("%s..%s", mainBranch, branch))
+		output, err := cmd.Output()
+		if err != nil {
+			fmt.Printf("  %s: Could not check branch status: %v\n", yellow("WARNING"), err)
+		} else {
+			commitOutput := strings.TrimSpace(string(output))
+			if commitOutput == "" {
+				fmt.Printf("  %s: Branch %s has no new commits (may be behind or equal to %s)\n", blue("INFO"), branch, mainBranch)
+			} else {
+				commits := strings.Split(commitOutput, "\n")
+				fmt.Printf("  %s: Branch %s has %d commit(s) ahead of %s\n", blue("INFO"), branch, len(commits), mainBranch)
+			}
+		}
+
+		// Check if branch is behind main
+		cmd = exec.Command("git", "log", "--oneline", fmt.Sprintf("%s..%s", branch, mainBranch))
+		output, err = cmd.Output()
+		if err != nil {
+			fmt.Printf("  %s: Could not check if branch is behind: %v\n", yellow("WARNING"), err)
+		} else {
+			commitOutput := strings.TrimSpace(string(output))
+			if commitOutput != "" {
+				commits := strings.Split(commitOutput, "\n")
+				fmt.Fprintf(os.Stderr, "%s: Branch %s is %d commit(s) behind %s\n", red("FAIL"), branch, len(commits), mainBranch)
+				if mergeMode {
+					allPossible = false
+				}
+			} else {
+				fmt.Printf("  %s: Branch %s is up to date with %s\n", green("PASS"), branch, mainBranch)
+			}
+		}
+
 		if mergeMode {
-			// Check branch status relative to main
-			fmt.Printf("Checking: Branch %s status relative to %s\n", branch, mainBranch)
-			cmd := exec.Command("git", "log", "--oneline", fmt.Sprintf("%s..%s", mainBranch, branch))
-			output, err := cmd.Output()
-			if err != nil {
-				fmt.Printf("  %s: Could not check branch status: %v\n", yellow("WARNING"), err)
-			} else {
-				commitOutput := strings.TrimSpace(string(output))
-				if commitOutput == "" {
-					fmt.Printf("  %s: Branch %s has no new commits (may be behind or equal to %s)\n", blue("INFO"), branch, mainBranch)
-				} else {
-					commits := strings.Split(commitOutput, "\n")
-					fmt.Printf("  %s: Branch %s has %d commit(s) ahead of %s\n", blue("INFO"), branch, len(commits), mainBranch)
-				}
-			}
-
-			// Check if branch is behind main
-			cmd = exec.Command("git", "log", "--oneline", fmt.Sprintf("%s..%s", branch, mainBranch))
-			output, err = cmd.Output()
-			if err != nil {
-				fmt.Printf("  %s: Could not check if branch is behind: %v\n", yellow("WARNING"), err)
-			} else {
-				commitOutput := strings.TrimSpace(string(output))
-				if commitOutput != "" {
-					commits := strings.Split(commitOutput, "\n")
-					fmt.Fprintf(os.Stderr, "%s: Branch %s is %d commit(s) behind %s\n", red("FAIL"), branch, len(commits), mainBranch)
-					if mergeMode {
-						allPossible = false
-					}
-				} else {
-					fmt.Printf("  %s: Branch %s is up to date with %s\n", green("PASS"), branch, mainBranch)
-				}
-			}
-
 			// Test merge
 			fmt.Printf("Testing: %s %s onto %s\n", typeStr, branch, mainBranch)
 			cmd = exec.Command("git", "merge", "--no-commit", "--no-ff", branch)
@@ -770,13 +770,13 @@ func mergeOrDelete(branch string, mergeMode, deleteMode, confirm bool) {
 		// Test remote branch deletion
 		fmt.Printf("Testing: Delete remote branch origin/%s\n", branch)
 		// First check if remote branch exists
-		cmd := exec.Command("git", "show-ref", "--quiet", "refs/remotes/origin/"+branch)
+		cmd = exec.Command("git", "show-ref", "--quiet", "refs/remotes/origin/"+branch)
 		if err := cmd.Run(); err != nil {
 			// Remote branch doesn't exist - that's okay, just warn
 			fmt.Printf("  %s: Remote branch origin/%s does not exist (will be skipped)\n", yellow("WARNING"), branch)
 		} else {
 			// Remote branch exists, test deletion
-			cmd := exec.Command("git", "push", "-d", "--dry-run", "origin", branch)
+			cmd = exec.Command("git", "push", "-d", "--dry-run", "origin", branch)
 			if err := cmd.Run(); err != nil {
 				fmt.Printf("  %s: Remote branch deletion would fail: %v\n", red("FAIL"), err)
 				allPossible = false

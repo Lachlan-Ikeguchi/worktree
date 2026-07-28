@@ -3,38 +3,26 @@ package main
 import (
 	"fmt"
 	"os"
-	"os/exec"
-	"path/filepath"
-	"strings"
 
 	"github.com/spf13/cobra"
+
+	"github.com/lachlan/worktree/internal/clone"
+	"github.com/lachlan/worktree/internal/completion"
+	"github.com/lachlan/worktree/internal/git"
+	"github.com/lachlan/worktree/internal/list"
+	"github.com/lachlan/worktree/internal/project"
+	"github.com/lachlan/worktree/internal/worktree"
 )
 
-// ANSI color codes
-const (
-	colorReset  = "\033[0m"
-	colorRed    = "\033[31m"
-	colorGreen  = "\033[32m"
-	colorYellow = "\033[33m"
-	colorBlue   = "\033[34m"
+// Global flags for create/delete/merge operations
+var (
+	remoteFlag    bool
+	existingFlag  bool
+	deleteFlag    bool
+	mergeMode     bool
+	deleteMode    bool
+	confirmFlag   bool
 )
-
-// Color helper functions
-func red(text string) string {
-	return colorRed + text + colorReset
-}
-
-func green(text string) string {
-	return colorGreen + text + colorReset
-}
-
-func yellow(text string) string {
-	return colorYellow + text + colorReset
-}
-
-func blue(text string) string {
-	return colorBlue + text + colorReset
-}
 
 var rootCmd = &cobra.Command{
 	Use:   "worktree",
@@ -69,7 +57,7 @@ Clone a repository:
   worktree clone <repository-url>`,
 	SilenceUsage: true,
 	Args:         cobra.ArbitraryArgs,
-	ValidArgsFunction: branchNameCompletion,
+	ValidArgsFunction: completion.BranchNameCompletion,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		// Skip pre-run for help, completion, and completion-related calls
 		if cmd.Name() == "completion" || (len(args) > 0 && args[0] == "completion") || (len(args) > 0 && args[0] == "__completeNoDesc") {
@@ -79,18 +67,6 @@ Clone a repository:
 		// This allows clone command to work from non-git directories
 	},
 }
-
-// Flags for create mode
-var (
-	remoteFlag    bool
-	existingFlag  bool
-	deleteFlag    bool
-	mergeMode     bool
-	deleteMode    bool
-	confirmFlag   bool
-)
-
-
 
 func init() {
 	// Global flags for create/delete/merge operations
@@ -106,31 +82,22 @@ func init() {
 		Use:   "list",
 		Short: "List all worktrees",
 		Long:  "List all branches (local and remote)",
-		Run: func(cmd *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			// Check if we're in the main repo (has .git/) not a worktree (has .git file)
-			if isWorktree() {
-				fmt.Fprintln(os.Stderr, "WARNING: must be called from the main repository, not a worktree")
-				os.Exit(1)
+			if git.IsWorktree() {
+				return fmt.Errorf("must be called from the main repository, not a worktree")
 			}
 
-			if !isGitRepo() {
-				fmt.Fprintln(os.Stderr, "WARNING: not a git repository")
-				os.Exit(1)
+			if !git.IsGitRepo() {
+				return fmt.Errorf("not a git repository")
 			}
 
-			gitArgs := []string{"branch", "-a"}
-			cmdExec := exec.Command("git", gitArgs...)
-			cmdExec.Stdout = os.Stdout
-			cmdExec.Stderr = os.Stderr
-			if err := cmdExec.Run(); err != nil {
-				fmt.Fprintf(os.Stderr, "Error running git branch: %v\n", err)
-				os.Exit(1)
-			}
+			return list.List()
 		},
 	}
 	rootCmd.AddCommand(listCmd)
 
-	// Clone command - moved from separate clone script
+	// Clone command
 	cloneCmd := &cobra.Command{
 		Use:   "clone <repository-url>",
 		Short: "Clone a Git repository into project_name/[branch]/",
@@ -162,51 +129,8 @@ The resulting structure will be:
 			}
 			return nil
 		},
-		Run: func(cmd *cobra.Command, args []string) {
-			repoURL := args[0]
-
-			// Extract project name from URL
-			projectName := extractProjectName(repoURL)
-
-			currentDir, err := os.Getwd()
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error: failed to get current directory: %v\n", err)
-				os.Exit(1)
-			}
-
-			// Create project directory
-			projectPath := filepath.Join(currentDir, projectName)
-			if err := os.MkdirAll(projectPath, 0755); err != nil {
-				fmt.Fprintf(os.Stderr, "Error: failed to create directory: %v\n", err)
-				os.Exit(1)
-			}
-
-			// Clone repository into the project directory
-			cloneCmd := exec.Command("git", "clone", repoURL, projectName)
-			cloneCmd.Dir = projectPath
-			if err := cloneCmd.Run(); err != nil {
-				fmt.Fprintf(os.Stderr, "Error: failed to clone repository: %v\n", err)
-				// Clean up the directory we created
-				os.RemoveAll(projectPath)
-				os.Exit(1)
-			}
-
-			// Get the branch name from the cloned repo
-			clonedRepoPath := filepath.Join(projectPath, projectName)
-			branchName, err := getCurrentBranch(clonedRepoPath)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error: failed to get branch name: %v\n", err)
-				os.Exit(1)
-			}
-
-			// Rename the cloned repo directory to the branch name
-			branchPath := filepath.Join(projectPath, branchName)
-			if err := os.Rename(clonedRepoPath, branchPath); err != nil {
-				fmt.Fprintf(os.Stderr, "Error: failed to rename directory: %v\n", err)
-				os.Exit(1)
-			}
-
-			fmt.Printf("Successfully cloned %s into %s\n", repoURL, filepath.Join(projectName, branchName))
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return clone.Clone(args[0])
 		},
 	}
 	rootCmd.AddCommand(cloneCmd)
@@ -234,87 +158,30 @@ The main branch name is determined from git config (init.defaultBranch) or
 defaults to 'master' if not configured.`,
 		SilenceUsage: true,
 		Args:        cobra.ExactArgs(1),
-		Run: func(cmd *cobra.Command, args []string) {
-			projectName := args[0]
-			
-			// Get current directory
-			currentDir, err := os.Getwd()
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error: failed to get current directory: %v\n", err)
-				os.Exit(1)
-			}
-
-			// Create project directory
-			projectPath := filepath.Join(currentDir, projectName)
-			if _, err := os.Stat(projectPath); err == nil {
-				fmt.Fprintf(os.Stderr, "Error: project directory '%s' already exists\n", projectName)
-				os.Exit(1)
-			}
-
-			// Get default branch name
-			branchName := getDefaultBranchName()
-			fmt.Printf("Using default branch: %s\n", branchName)
-			if err := os.MkdirAll(projectPath, 0755); err != nil {
-				fmt.Fprintf(os.Stderr, "Error: failed to create project directory: %v\n", err)
-				os.Exit(1)
-			}
-
-			// Create branch directory
-			branchPath := filepath.Join(projectPath, branchName)
-			if err := os.MkdirAll(branchPath, 0755); err != nil {
-				fmt.Fprintf(os.Stderr, "Error: failed to create branch directory: %v\n", err)
-				// Clean up project directory
-				os.RemoveAll(projectPath)
-				os.Exit(1)
-			}
-
-			// Initialize git repository
-			gitCmd := exec.Command("git", "init")
-			gitCmd.Dir = branchPath
-			if err := gitCmd.Run(); err != nil {
-				fmt.Fprintf(os.Stderr, "Error: failed to initialize git repository: %v\n", err)
-				// Clean up
-				os.RemoveAll(projectPath)
-				os.Exit(1)
-			}
-
-			fmt.Printf("Successfully initialized project '%s' with structure:\n", projectName)
-			fmt.Printf("  %s/\n", projectName)
-			fmt.Printf("  └── %s/\n", branchName)
-			fmt.Printf("      └── .git/\n")
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return project.Init(args[0])
 		},
 	}
 	rootCmd.AddCommand(initCmd)
 
-	// Completion command (automatically generated by Cobra)
-	rootCmd.AddCommand(completionCmd)
+	// Completion command
+	rootCmd.AddCommand(completion.GetCompletionCommand())
 
 	// Main run function for create/delete/merge operations
 	rootCmd.Run = func(cmd *cobra.Command, args []string) {
 		// Check if we're in the main repo (has .git/) not a worktree (has .git file)
-		if isWorktree() {
+		if git.IsWorktree() {
 			fmt.Fprintln(os.Stderr, "WARNING: must be called from the main repository, not a worktree")
 			os.Exit(1)
 		}
 
-		if !isGitRepo() {
+		if !git.IsGitRepo() {
 			fmt.Fprintln(os.Stderr, "WARNING: not a git repository")
 			os.Exit(1)
 		}
 
 		if len(args) == 0 {
 			cmd.Help()
-			os.Exit(1)
-		}
-
-		// Check if we're in the main repo (has .git/) not a worktree (has .git file)
-		if isWorktree() {
-			fmt.Fprintln(os.Stderr, "WARNING: must be called from the main repository, not a worktree")
-			os.Exit(1)
-		}
-
-		if !isGitRepo() {
-			fmt.Fprintln(os.Stderr, "WARNING: not a git repository")
 			os.Exit(1)
 		}
 
@@ -357,63 +224,27 @@ defaults to 'master' if not configured.`,
 		branch := args[0]
 
 		if mergeMode || deleteMode {
-			mergeOrDelete(branch, mergeMode, deleteMode, confirmFlag)
+			if err := worktree.MergeOrDelete(branch, mergeMode, deleteMode, confirmFlag); err != nil {
+				fmt.Fprintf(os.Stderr, "WARNING: %v\n", err)
+				os.Exit(1)
+			}
 			return
 		}
 
 		if deleteFlag {
-			deleteWorktree(branch)
+			if err := worktree.DeleteWorktreeOnly(branch); err != nil {
+				fmt.Fprintf(os.Stderr, "WARNING: %v\n", err)
+				os.Exit(1)
+			}
 			return
 		}
 
 		// CREATE MODE
-		createWorktree(branch, remoteFlag, existingFlag)
-	}
-}
-
-// completionCmd generates shell completion scripts
-// Note: Completion command doesn't need git repo checks
-var completionCmd = &cobra.Command{
-	Use:   "completion [bash|zsh|fish|powershell]",
-	Short: "Generate completion scripts for your shell",
-	Long: `To load completions:
-
-Bash:
-  $ source <(worktree completion bash)
-  # To load completions for each session, execute once:
-  $ worktree completion bash > /etc/bash_completion.d/worktree
-
-Zsh:
-  $ source <(worktree completion zsh)
-  # To load completions for each session, execute once:
-  $ worktree completion zsh > "${fpath[1]}/_worktree"
-
-Fish:
-  $ worktree completion fish | source
-  # To load completions for each session, execute once:
-  $ worktree completion fish > ~/.config/fish/completions/worktree.fish
-
-PowerShell:
-  $ worktree completion powershell | Out-String | Invoke-Expression
-  # To load completions for each session, add to your profile:
-  $ worktree completion powershell > $PROFILE.CurrentUserCurrentHost`,
-	ValidArgs: []string{"bash", "zsh", "fish", "powershell"},
-	Args:     cobra.ExactValidArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		// Completion command doesn't need git repo checks
-		switch args[0] {
-		case "bash":
-			return rootCmd.GenBashCompletion(os.Stdout)
-		case "zsh":
-			return rootCmd.GenZshCompletion(os.Stdout)
-		case "fish":
-			return rootCmd.GenFishCompletion(os.Stdout, true)
-		case "powershell":
-			return rootCmd.GenPowerShellCompletion(os.Stdout)
-		default:
-			return fmt.Errorf("unsupported shell: %s", args[0])
+		if err := worktree.CreateWorktree(branch, remoteFlag, existingFlag); err != nil {
+			fmt.Fprintf(os.Stderr, "WARNING: %v\n", err)
+			os.Exit(1)
 		}
-	},
+	}
 }
 
 func main() {
@@ -421,522 +252,4 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-}
-
-func isWorktree() bool {
-	// Check if .git is a file (indicates worktree)
-	if _, err := os.Stat(".git"); err == nil {
-		// .git exists, check if it's a file
-		info, err := os.Stat(".git")
-		if err == nil && !info.IsDir() {
-			return true
-		}
-	}
-	return false
-}
-
-func isGitRepo() bool {
-	info, err := os.Stat(".git")
-	if err != nil {
-		return false
-	}
-	return info.IsDir()
-}
-
-func getMainBranch() (string, error) {
-	// Try to get the main branch from origin/HEAD
-	cmd := exec.Command("git", "symbolic-ref", "refs/remotes/origin/HEAD")
-	output, err := cmd.Output()
-	if err == nil {
-		ref := strings.TrimSpace(string(output))
-		// Extract branch name from refs/remotes/origin/<branch>
-		parts := strings.Split(ref, "/")
-		if len(parts) >= 4 {
-			return parts[3], nil
-		}
-	}
-
-	// Fall back to checking common branch names
-	for _, candidate := range []string{"main", "master", "trunk"} {
-		cmd := exec.Command("git", "show-ref", "--quiet", "refs/heads/"+candidate)
-		if err := cmd.Run(); err == nil {
-			return candidate, nil
-		}
-	}
-
-	return "", fmt.Errorf("cannot determine main branch (tried origin/HEAD, main, master, trunk)")
-}
-
-func branchExists(branch string) bool {
-	cmd := exec.Command("git", "show-ref", "--quiet", "refs/heads/"+branch)
-	return cmd.Run() == nil
-}
-
-// getLocalBranches returns a list of all local branch names
-func getLocalBranches() ([]string, error) {
-	cmd := exec.Command("git", "branch", "--format=%(refname:short)")
-	output, err := cmd.Output()
-	if err != nil {
-		return nil, err
-	}
-	branches := strings.Split(strings.TrimSpace(string(output)), "\n")
-	// Filter out empty strings
-	var result []string
-	for _, b := range branches {
-		if b != "" {
-			result = append(result, b)
-		}
-	}
-	return result, nil
-}
-
-// getRemoteBranches returns a list of all remote branch names (without origin/ prefix)
-func getRemoteBranches() ([]string, error) {
-	cmd := exec.Command("git", "branch", "-r", "--format=%(refname:short)")
-	output, err := cmd.Output()
-	if err != nil {
-		return nil, err
-	}
-	branches := strings.Split(strings.TrimSpace(string(output)), "\n")
-	// Filter and remove origin/ prefix
-	seen := make(map[string]bool)
-	var result []string
-	for _, b := range branches {
-		if b != "" {
-			// Remove origin/ prefix
-			branch := strings.TrimPrefix(b, "origin/")
-			// Skip invalid branch names and deduplicate
-			if branch != "" && branch != "origin" && !seen[branch] {
-				seen[branch] = true
-				result = append(result, branch)
-			}
-		}
-	}
-	return result, nil
-}
-
-// branchNameCompletion returns available branch names for completion
-// Returns both local and remote branches to provide comprehensive completion
-func branchNameCompletion(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-	// We only complete the first positional argument (branch name)
-	// If there are already positional args, don't provide completions
-	if len(args) > 0 {
-		// Check if the last arg is a flag (starts with -)
-		// If so, we might be completing a branch name after a flag
-		lastArg := args[len(args)-1]
-		if strings.HasPrefix(lastArg, "-") {
-			// Last argument is a flag, so we're completing the branch name
-			// This is fine, continue
-		} else {
-			// We already have a positional argument, don't complete
-			return nil, cobra.ShellCompDirectiveNoFileComp
-		}
-	}
-
-	// Get both local and remote branches
-	// This provides the most comprehensive completion experience
-	seen := make(map[string]bool)
-	var allBranches []string
-
-	// Get local branches
-	localBranches, err := getLocalBranches()
-	if err == nil {
-		for _, b := range localBranches {
-			if !seen[b] {
-				seen[b] = true
-				allBranches = append(allBranches, b)
-			}
-		}
-	}
-
-	// Get remote branches
-	remoteBranches, err := getRemoteBranches()
-	if err == nil {
-		for _, b := range remoteBranches {
-			if !seen[b] {
-				seen[b] = true
-				allBranches = append(allBranches, b)
-			}
-		}
-	}
-
-	if len(allBranches) == 0 {
-		return nil, cobra.ShellCompDirectiveNoFileComp
-	}
-
-	// Filter branches based on the prefix being completed
-	var completions []string
-	for _, branch := range allBranches {
-		if strings.HasPrefix(branch, toComplete) {
-			completions = append(completions, branch)
-		}
-	}
-
-	return completions, cobra.ShellCompDirectiveNoFileComp
-}
-
-func mergeOrDelete(branch string, mergeMode, deleteMode, confirm bool) {
-	mainBranch, err := getMainBranch()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "WARNING: %v\n", err)
-		os.Exit(1)
-	}
-
-	if !branchExists(branch) {
-		fmt.Fprintf(os.Stderr, "WARNING: branch '%s' does not exist\n", branch)
-		os.Exit(1)
-	}
-
-	worktreePath := filepath.Join("..", branch)
-
-	if confirm {
-		if mergeMode {
-
-			// Perform merge
-			cmd := exec.Command("git", "merge", branch)
-			if err := cmd.Run(); err != nil {
-				fmt.Fprintf(os.Stderr, "WARNING: merge failed: %v\n", err)
-				os.Exit(1)
-			}
-		}
-
-		// Remove worktree
-		cmd := exec.Command("git", "worktree", "remove", worktreePath)
-		if err := cmd.Run(); err != nil {
-			fmt.Fprintf(os.Stderr, "WARNING: could not remove worktree: %v\n", err)
-			os.Exit(1)
-		}
-
-		// Clean up empty parent directories
-		cleanupPath := filepath.Dir(worktreePath)
-		for cleanupPath != "." && cleanupPath != ".." {
-			// Only remove if directory is empty (equivalent to rmdir --ignore-fail-on-non-empty)
-			if _, err := os.Stat(cleanupPath); os.IsNotExist(err) {
-				break
-			}
-			entries, err := os.ReadDir(cleanupPath)
-			if err != nil {
-				break
-			}
-			if len(entries) == 0 {
-				if err := os.Remove(cleanupPath); err != nil {
-					break
-				}
-			} else {
-				break
-			}
-			cleanupPath = filepath.Dir(cleanupPath)
-		}
-
-		// Delete local branch
-		cmd = exec.Command("git", "branch", "-d", branch)
-		if err := cmd.Run(); err != nil {
-			fmt.Fprintf(os.Stderr, "WARNING: failed to delete local branch: %v\n", err)
-			os.Exit(1)
-		}
-
-		// Delete remote branch
-		cmd = exec.Command("git", "push", "-d", "origin", branch)
-		if err := cmd.Run(); err != nil {
-			fmt.Println("Warning: remote branch may not exist or deletion failed.")
-		}
-	} else {
-		// Dry run - test if operations are actually possible
-		typeStr := "Delete"
-		flagStr := "--delete"
-		if mergeMode {
-			typeStr = "Merge"
-			flagStr = "--merge"
-		}
-
-		fmt.Println("=== DRY RUN - Testing if operations are possible ===")
-		fmt.Println()
-		
-		allPossible := true
-
-		// Check branch status relative to main (for both merge and delete modes)
-		fmt.Printf("Checking: Branch %s status relative to %s\n", branch, mainBranch)
-		cmd := exec.Command("git", "log", "--oneline", fmt.Sprintf("%s..%s", mainBranch, branch))
-		output, err := cmd.Output()
-		if err != nil {
-			fmt.Printf("  %s: Could not check branch status: %v\n", yellow("WARNING"), err)
-		} else {
-			commitOutput := strings.TrimSpace(string(output))
-			if commitOutput == "" {
-				fmt.Printf("  %s: Branch %s has no new commits (may be behind or equal to %s)\n", blue("INFO"), branch, mainBranch)
-			} else {
-				commits := strings.Split(commitOutput, "\n")
-				fmt.Printf("  %s: Branch %s has %d commit(s) ahead of %s\n", blue("INFO"), branch, len(commits), mainBranch)
-			}
-		}
-
-		// Check if branch is behind main
-		cmd = exec.Command("git", "log", "--oneline", fmt.Sprintf("%s..%s", branch, mainBranch))
-		output, err = cmd.Output()
-		if err != nil {
-			fmt.Printf("  %s: Could not check if branch is behind: %v\n", yellow("WARNING"), err)
-		} else {
-			commitOutput := strings.TrimSpace(string(output))
-			if commitOutput != "" {
-				commits := strings.Split(commitOutput, "\n")
-				fmt.Fprintf(os.Stderr, "%s: Branch %s is %d commit(s) behind %s\n", red("FAIL"), branch, len(commits), mainBranch)
-				if mergeMode {
-					allPossible = false
-				}
-			} else {
-				fmt.Printf("  %s: Branch %s is up to date with %s\n", green("PASS"), branch, mainBranch)
-			}
-		}
-
-		if mergeMode {
-			// Test merge
-			fmt.Printf("Testing: %s %s onto %s\n", typeStr, branch, mainBranch)
-			cmd = exec.Command("git", "merge", "--no-commit", "--no-ff", branch)
-			if err := cmd.Run(); err != nil {
-				fmt.Printf("  %s: Merge would fail: %v\n", red("FAIL"), err)
-				allPossible = false
-			} else {
-				// Reset the merge (we only tested with --no-commit)
-				cmd := exec.Command("git", "merge", "--abort")
-				cmd.Run() // Ignore error, might not have started
-				fmt.Printf("  %s: Merge is possible\n", green("PASS"))
-			}
-		}
-
-		// Test worktree removal
-		fmt.Printf("Testing: Delete worktree at %s\n", worktreePath)
-		// Get absolute path for comparison
-		absWorktreePath, err := filepath.Abs(worktreePath)
-		if err != nil {
-			absWorktreePath = worktreePath
-		}
-
-		if _, err := os.Stat(worktreePath); os.IsNotExist(err) {
-			fmt.Printf("  %s: Worktree directory not found at %s\n", red("FAIL"), worktreePath)
-			allPossible = false
-		} else {
-			// Check if worktree is valid and can be removed
-			cmd := exec.Command("git", "worktree", "list")
-			output, err := cmd.Output()
-			if err != nil {
-				fmt.Printf("  %s: Could not list worktrees: %v\n", red("FAIL"), err)
-				allPossible = false
-			} else {
-				worktreeList := string(output)
-				// Check both relative and absolute paths
-				if !strings.Contains(worktreeList, worktreePath) && !strings.Contains(worktreeList, absWorktreePath) {
-					fmt.Printf("  %s: Worktree at %s is not registered\n", red("FAIL"), worktreePath)
-					allPossible = false
-				} else {
-					fmt.Printf("  %s: Worktree can be removed\n", green("PASS"))
-				}
-			}
-		}
-
-		// Test local branch deletion
-		fmt.Printf("Testing: Delete local branch %s\n", branch)
-		if !branchExists(branch) {
-			fmt.Printf("  %s: Local branch '%s' does not exist\n", red("FAIL"), branch)
-			allPossible = false
-		} else {
-			// Check if branch is fully merged to main branch
-			// A branch can be safely deleted with -d if it's merged
-			// Otherwise, we need -D (force)
-			cmd := exec.Command("git", "branch", "--merged", mainBranch)
-			output, err := cmd.Output()
-			if err != nil {
-				fmt.Printf("  %s: Could not check merged branches: %v\n", red("FAIL"), err)
-				allPossible = false
-			} else {
-				branches := strings.Split(strings.TrimSpace(string(output)), "\n")
-				merged := false
-				for _, b := range branches {
-					// Remove leading * and spaces
-					b = strings.TrimLeft(b, " *")
-					if b == branch {
-						merged = true
-						break
-					}
-				}
-				if merged {
-					fmt.Printf("  %s: Local branch can be deleted (fully merged)\n", green("PASS"))
-				} else {
-					// Branch not merged, but can be force deleted
-					fmt.Printf("  %s: Local branch can be deleted (with force -D)\n", green("PASS"))
-				}
-			}
-		}
-
-		// Test remote branch deletion
-		fmt.Printf("Testing: Delete remote branch origin/%s\n", branch)
-		// First check if remote branch exists
-		cmd = exec.Command("git", "show-ref", "--quiet", "refs/remotes/origin/"+branch)
-		if err := cmd.Run(); err != nil {
-			// Remote branch doesn't exist - that's okay, just warn
-			fmt.Printf("  %s: Remote branch origin/%s does not exist (will be skipped)\n", yellow("WARNING"), branch)
-		} else {
-			// Remote branch exists, test deletion
-			cmd = exec.Command("git", "push", "-d", "--dry-run", "origin", branch)
-			if err := cmd.Run(); err != nil {
-				fmt.Printf("  %s: Remote branch deletion would fail: %v\n", red("FAIL"), err)
-				allPossible = false
-			} else {
-				fmt.Printf("  %s: Remote branch can be deleted\n", green("PASS"))
-			}
-		}
-
-		fmt.Println()
-		if allPossible {
-			fmt.Println(green("All operations are possible!"))
-		} else {
-			fmt.Println(red("Some operations would fail - see above for details"))
-		}
-		fmt.Println()
-		fmt.Printf("To execute, run: worktree %s --confirm %s\n", flagStr, branch)
-		fmt.Println("Warning: ensures no one else is working on this branch - it will be deleted")
-	}
-}
-
-func deleteWorktree(branch string) {
-	worktreePath := filepath.Join("..", branch)
-
-	cmd := exec.Command("git", "worktree", "remove", worktreePath)
-	if err := cmd.Run(); err != nil {
-		fmt.Fprintf(os.Stderr, "WARNING: could not remove worktree: %v\n", err)
-		os.Exit(1)
-	}
-
-	// Clean up empty parent directories
-	cleanupPath := filepath.Dir(worktreePath)
-	for cleanupPath != "." && cleanupPath != ".." {
-		// Only remove if directory is empty (equivalent to rmdir --ignore-fail-on-non-empty)
-		if _, err := os.Stat(cleanupPath); os.IsNotExist(err) {
-			break
-		}
-		entries, err := os.ReadDir(cleanupPath)
-		if err != nil {
-			break
-		}
-		if len(entries) == 0 {
-			if err := os.Remove(cleanupPath); err != nil {
-				break
-			}
-		} else {
-			break
-		}
-		cleanupPath = filepath.Dir(cleanupPath)
-	}
-
-	fmt.Printf("Deleted worktree at %s\n", worktreePath)
-}
-
-func createWorktree(branch string, remote, existing bool) {
-	worktreePath := filepath.Join("..", branch)
-
-	// If worktree already exists, skip creation
-	if _, err := os.Stat(worktreePath); err == nil {
-		// Branch validation still needed for -e flag
-		if existing {
-			if !branchExists(branch) {
-				fmt.Fprintf(os.Stderr, "WARNING: branch '%s' does not exist locally\n", branch)
-				os.Exit(1)
-			}
-		}
-	} else {
-		// Create the branch
-		if remote {
-			cmd := exec.Command("git", "fetch", "origin", fmt.Sprintf("%s:%s", branch, branch))
-			if err := cmd.Run(); err != nil {
-				fmt.Fprintf(os.Stderr, "WARNING: failed to create local tracking branch: %v\n", err)
-				os.Exit(1)
-			}
-		} else if !existing {
-			cmd := exec.Command("git", "branch", branch)
-			if err := cmd.Run(); err != nil {
-				fmt.Fprintf(os.Stderr, "WARNING: failed to create branch: %v\n", err)
-				os.Exit(1)
-			}
-			fmt.Println()
-			fmt.Println("Remember to push to create tracking branches in remote")
-			fmt.Println()
-		} else {
-			if !branchExists(branch) {
-				fmt.Fprintf(os.Stderr, "WARNING: branch '%s' does not exist locally\n", branch)
-				os.Exit(1)
-			}
-		}
-
-		// Create worktree
-		cmd := exec.Command("git", "worktree", "add", worktreePath, branch)
-		if err := cmd.Run(); err != nil {
-			fmt.Fprintf(os.Stderr, "WARNING: failed to create worktree: %v\n", err)
-			os.Exit(1)
-		}
-	}
-
-	// Start a new bash shell in the worktree
-	cmd := exec.Command("bash", "-c", fmt.Sprintf("cd %q; exec bash", worktreePath))
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Stdin = os.Stdin
-	if err := cmd.Run(); err != nil {
-		fmt.Fprintf(os.Stderr, "WARNING: failed to start shell: %v\n", err)
-		os.Exit(1)
-	}
-}
-
-func extractProjectName(url string) string {
-	// Remove .git suffix if present
-	url = strings.TrimSuffix(url, ".git")
-
-	// Handle SSH URLs like git@github.com:owner/repo
-	// Split by : or / and take the last element, similar to IFS=':/' read -r -a url
-	if strings.Contains(url, "@") && strings.Contains(url, ":") {
-		parts := strings.Split(url, ":")
-		if len(parts) >= 2 {
-			// Get the last part after the colon
-			lastPart := parts[len(parts)-1]
-			// Further split by / to handle git@host:owner/repo
-			pathParts := strings.Split(lastPart, "/")
-			if len(pathParts) > 0 {
-				return pathParts[len(pathParts)-1]
-			}
-			return lastPart
-		}
-	}
-
-	// Handle HTTPS URLs like https://github.com/owner/repo
-	parts := strings.Split(url, "/")
-	if len(parts) > 0 {
-		return parts[len(parts)-1]
-	}
-
-	return url
-}
-
-func getCurrentBranch(repoPath string) (string, error) {
-	cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
-	cmd.Dir = repoPath
-	output, err := cmd.Output()
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(string(output)), nil
-}
-
-// getDefaultBranchName returns the default branch name from git config
-// or defaults to "master" if not configured
-func getDefaultBranchName() string {
-	// Try to get from git config
-	cmd := exec.Command("git", "config", "--get", "init.defaultBranch")
-	output, err := cmd.Output()
-	if err == nil {
-		branch := strings.TrimSpace(string(output))
-		if branch != "" {
-			return branch
-		}
-	}
-
-	// Default to master if not configured
-	return "master"
 }

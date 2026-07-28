@@ -174,7 +174,12 @@ func GetBranchStatus(branch, mainBranch string) (ahead int, behind int, err erro
 	if err != nil {
 		return 0, 0, fmt.Errorf("could not check commits ahead: %v", err)
 	}
-	ahead = len(strings.Split(strings.TrimSpace(string(output)), "\n"))
+	commitOutput := strings.TrimSpace(string(output))
+	if commitOutput == "" {
+		ahead = 0
+	} else {
+		ahead = len(strings.Split(commitOutput, "\n"))
+	}
 
 	// Check commits behind (main has that branch doesn't)
 	cmd = exec.Command("git", "log", "--oneline", fmt.Sprintf("%s..%s", branch, mainBranch))
@@ -182,7 +187,12 @@ func GetBranchStatus(branch, mainBranch string) (ahead int, behind int, err erro
 	if err != nil {
 		return 0, 0, fmt.Errorf("could not check commits behind: %v", err)
 	}
-	behind = len(strings.Split(strings.TrimSpace(string(output)), "\n"))
+	commitOutput = strings.TrimSpace(string(output))
+	if commitOutput == "" {
+		behind = 0
+	} else {
+		behind = len(strings.Split(commitOutput, "\n"))
+	}
 
 	return ahead, behind, nil
 }

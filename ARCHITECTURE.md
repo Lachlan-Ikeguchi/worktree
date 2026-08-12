@@ -106,12 +106,12 @@ When a user runs `worktree feat/new-feature`, the command processing follows thi
    - `isWorktree()` - Check if current directory is a worktree (has .git as a file)
    - `isGitRepo()` - Check if current directory is the main git repository (has .git as a directory)
    - Validate argument count matches command requirements
-   - Validate flag exclusivity (e.g., -r vs -e, merge vs delete cannot be combined)
+   - Validate flag exclusivity (e.g., merge vs delete cannot be combined)
 
 3. **Command Routing**: Based on flags and arguments:
    - If `mergeMode` OR `deleteMode` is true: call `mergeOrDelete(branch, flags, confirm)`
    - If `deleteFlag` is true: call `deleteWorktree(branch)`
-   - If none of the above: call `createWorktree(branch, remote, existing)`
+   - If none of the above: call `createWorktree(branch)`
 
 4. **Action Execution**: The routed function performs its specific operations:
    - `createWorktree()`: Creates the branch if needed, creates the worktree directory, and starts a bash shell in it
@@ -238,11 +238,10 @@ worktree (root)
 ├── list
 │   └── Lists all branches (local and remote)
 │
-├── <branch> [flags]
-│   ├── (no flags): Create new branch and worktree
-│   ├── -r, --remote: Create worktree from remote branch
-│   ├── -e, --existing: Create worktree from existing local branch
-│   └── -d, --delete-worktree: Delete worktree directory
+├── <branch>
+│   └── (auto-detection: remote → local → new): Create worktree with auto-detection
+│
+├── <branch> -d, --delete-worktree: Delete worktree directory
 │
 ├── --merge [flags] <branch>
 │   ├── (no --confirm): Dry-run merge validation
@@ -263,8 +262,6 @@ worktree (root)
 
 ```
 Global Flags (applicable to root command):
-├── -r, --remote: Create from remote branch
-├── -e, --existing: Create from existing local branch
 ├── -d, --delete-worktree: Delete worktree directory
 ├── --merge: Merge branch into main
 ├── --delete: Delete branch and worktree
@@ -273,8 +270,7 @@ Global Flags (applicable to root command):
 List Command Flags: None (the list command has no flags)
 
 Mutual Exclusions:
-├── -r and -e cannot be used together
-├── -r, -e, -d cannot be used with --merge or --delete
+├── -d cannot be used with --merge or --delete
 ├── --merge and --delete cannot be used together
 └── --confirm can only be used with --merge or --delete
 ```
@@ -903,13 +899,8 @@ cloneCmd.Args = func(cmd *cobra.Command, args []string) error {
 
 **2. Flag Combination Validation**:
 ```go
-if remoteFlag && existingFlag {
-    fmt.Fprintln(os.Stderr, "WARNING: cannot use switches -r and -e at the same time")
-    os.Exit(1)
-}
-
-if (mergeMode || deleteMode) && (remoteFlag || existingFlag || deleteFlag) {
-    fmt.Fprintln(os.Stderr, "WARNING: cannot use -r, -e, or -d with --merge or --delete")
+if (mergeMode || deleteMode) && deleteFlag {
+    fmt.Fprintln(os.Stderr, "WARNING: cannot use -d with --merge or --delete")
     os.Exit(1)
 }
 ```

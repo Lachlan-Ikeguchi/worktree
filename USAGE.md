@@ -72,9 +72,7 @@ worktree --merge --confirm feat/new-feature
 |---------|-------------|-------------|
 | `worktree clone <url>` | Clone a repository into organized structure | Creates directory structure |
 | `worktree init <name>` | Initialize a new project with worktree structure | Creates project/[branch]/ with .git |
-| `worktree <branch>` | Create new branch and worktree | `../<branch>/` |
-| `worktree -r <branch>` | Create worktree from remote branch | `../<branch>/` |
-| `worktree -e <branch>` | Create worktree from existing local branch | `../<branch>/` |
+| `worktree <branch>` | Create worktree with auto-detection (remote→local→new) | `../<branch>/` |
 | `worktree list` | List all branches (local and remote) | stdout |
 | `worktree -d <branch>` | Delete worktree directory only | Removes directory |
 | `worktree --merge <branch>` | Dry-run merge validation | stdout |
@@ -237,52 +235,44 @@ The project name extraction handles complex URLs:
 
 ## worktree (create)
 
-Create a new branch and worktree, or create a worktree from existing branches.
+Create a worktree with auto-detection.
 
 ### Syntax
 
 ```bash
-# Create new branch and worktree
+# Create worktree with auto-detection
 worktree <branch-name>
-
-# Create worktree from remote branch
-worktree -r <branch-name>
-
-# Create worktree from existing local branch
-worktree -e <branch-name>
 ```
 
 ### Description
 
 Creates a Git worktree at `../<branch-name>` relative to the current repository and starts a bash shell in that worktree.
 
-### Flags
+The command auto-detects the branch source in this order:
+1. If remote branch exists (origin/<branch>): Creates local tracking branch from remote with upstream tracking
+2. Else if local branch exists: Uses the existing local branch
+3. Otherwise: Creates new branch from current HEAD
 
-| Flag | Short | Description | Required |
-|------|-------|-------------|----------|
-| `--remote` | `-r` | Create local tracking branch from origin/<branch> | No |
-| `--existing` | `-e` | Create worktree from existing local branch | No |
+### Auto-Detection Behavior
 
-### Flag Combinations
-
-| Combination | Behavior |
-|-------------|----------|
-| No flags | Creates new branch from current HEAD |
-| `-r` only | Creates local tracking branch from remote |
-| `-e` only | Creates worktree from existing local branch |
-| `-r` + `-e` | ❌ Error: mutually exclusive |
+| Scenario | Behavior |
+|----------|----------|
+| Remote branch exists | Creates local tracking branch from origin/<branch> with upstream |
+| Local branch exists | Uses existing local branch |
+| Neither exists | Creates new branch from HEAD |
+| Both exist | Prioritizes remote branch |
 
 ### Examples
 
 ```bash
-# Create new feature branch and worktree
+# Create new feature branch and worktree (auto-detects)
 worktree feat/new-feature
 
-# Create worktree from existing remote branch
-worktree -r origin/feat/existing-feature
+# Create worktree from existing remote branch (auto-detected)
+worktree feat/existing-feature
 
-# Create worktree from existing local branch
-worktree -e feat/local-branch
+# Create worktree from existing local branch (auto-detected)
+worktree feat/local-branch
 
 # Create bug fix branch
 worktree fix/bug-123
@@ -293,20 +283,18 @@ worktree docs/readme-update
 
 ### How It Works
 
-**Without flags (new branch)**:
-1. Creates new branch from current HEAD: `git branch <branch-name>`
-2. Creates worktree: `git worktree add ../<branch-name> <branch-name>`
-3. Starts bash shell in the worktree
+**Auto-detection flow**:
 
-**With `-r` flag (remote branch)**:
-1. Fetches remote branch: `git fetch origin <branch-name>:<branch-name>`
-2. Creates worktree: `git worktree add ../<branch-name> <branch-name>`
-3. Starts bash shell in the worktree
+1. **Check remote**: `git show-ref --quiet refs/remotes/origin/<branch>`
+   - If exists: `git fetch origin <branch>:<branch>` + `git branch --set-upstream-to=origin/<branch> <branch>`
+   - Then: `git worktree add ../<branch> <branch>`
+   
+2. **Check local**: `git show-ref --quiet refs/heads/<branch>`
+   - If exists: `git worktree add ../<branch> <branch>`
+   
+3. **Create new**: `git branch <branch>` then `git worktree add ../<branch> <branch>`
 
-**With `-e` flag (existing local branch)**:
-1. Validates branch exists locally
-2. Creates worktree: `git worktree add ../<branch-name> <branch-name>`
-3. Starts bash shell in the worktree
+4. Start bash shell in the worktree
 
 ### Directory Creation
 
@@ -322,7 +310,7 @@ Worktree created at: /home/user/projects/myapp/feat/new-feature
 
 ### Important Message
 
-When creating a new branch (without `-r` or `-e`), you'll see:
+When creating a new branch (when neither remote nor local exists), you'll see:
 ```
 Remember to push to create tracking branches in remote
 ```
@@ -337,7 +325,6 @@ This reminds you to push the new branch to the remote repository.
 | "WARNING: not a git repository" | Ensure you're in a Git repository |
 | "WARNING: failed to create branch" | Check branch name is valid and doesn't already exist |
 | "WARNING: failed to create worktree" | Check worktree path doesn't already exist |
-| "WARNING: cannot use switches -r and -e at the same time" | Use only one flag |
 
 ---
 
@@ -599,7 +586,7 @@ worktree --delete feat/old-feature
 worktree --delete --confirm feat/old-feature
 
 # Cannot combine with other flags
-worktree --delete --confirm -r feat/test  # ❌ Error
+worktree --delete --confirm -d feat/test  # ❌ Error
 ```
 
 ### Differences from --merge
@@ -750,8 +737,8 @@ worktree <TAB><TAB>
 worktree feat/<TAB>
 # Shows: new-feature  existing-feature
 
-# Works with flags too
-worktree -r <TAB><TAB>
+# Works with the main command too
+worktree <TAB><TAB>
 # Shows: feat/new-feature  fix/bug-123  main  docs/readme
 ```
 
@@ -801,8 +788,8 @@ worktree --merge --confirm feat/user-authentication
 ### Bug Fix with Remote Branch
 
 ```bash
-# Create worktree from existing remote branch
-worktree -r fix/urgent-bug
+# Create worktree from existing remote branch (auto-detected)
+worktree fix/urgent-bug
 
 # Fix the issue, commit, push
 # ... fix work ...
@@ -864,11 +851,12 @@ projects/
 |-------|---------|----------|
 | `WARNING: must be called from the main repository, not a worktree` | Command run from worktree directory | `cd` to main repository directory |
 | `WARNING: not a git repository` | Not in a Git repo | Navigate to a Git repository |
-| `WARNING: cannot use switches -r and -e at the same time` | Conflicting flags | Use only one flag |
-| `WARNING: cannot use -r, -e, or -d with --merge or --delete` | Invalid flag combination | Use only merge/delete flags |
 | `WARNING: cannot use --confirm is only used with --merge or --delete` | Misplaced confirm flag | Add with merge or delete flag |
 | `WARNING: branch '<name>' does not exist` | Branch doesn't exist | Check branch name spelling |
+| `WARNING: branch '<name>' does not exist locally or remotely` | Branch not found | Check branch exists on origin or locally |
 | `WARNING: failed to create worktree` | Worktree path issue | Check directory permissions |
+| `Error: unknown shorthand flag: 'r' in -r` | Removed flag used | Use auto-detection with `worktree <branch>` |
+| `Error: unknown shorthand flag: 'e' in -e` | Removed flag used | Use auto-detection with `worktree <branch>` |
 
 ### Debugging Tips
 

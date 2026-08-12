@@ -151,7 +151,7 @@ git clean -fd
 ### Naming Conventions
 
 - **Commands**: lowercase, hyphen-separated (e.g., `worktree clone`)
-- **Flags**: single letter short forms with long form equivalents (e.g., `-r, --remote`)
+- **Flags**: single letter short forms with long form equivalents (e.g., `-d, --delete-worktree`)
 - **Functions**: camelCase for Go functions (e.g., `createWorktree`, `deleteWorktree`)
 - **Variables**: camelCase with descriptive names
 - **Constants**: UPPER_CASE for color codes and configuration values
@@ -191,19 +191,14 @@ The worktree tool follows and enforces these Git workflow patterns:
    - Default branch is determined from origin/HEAD (main, master, or trunk)
 
 2. **Create Feature Branch**: `worktree <feature-name>`
-   - Creates new branch from current HEAD
+   - Auto-detects branch source (prioritizes remote, then local, then creates new from HEAD)
+   - If remote branch exists: creates local tracking branch from `origin/<branch-name>` with upstream tracking
+   - If local branch exists: creates worktree from existing local branch
+   - Otherwise: creates new local branch from current HEAD
    - Creates worktree at `../feature-name/`
    - Starts bash shell in the new worktree
 
-3. **Create from Remote**: `worktree -r <branch-name>`
-   - Creates local tracking branch from `origin/<branch-name>`
-   - Creates worktree at `../<branch-name>/`
-
-4. **Create from Existing Local**: `worktree -e <branch-name>`
-   - Creates worktree from existing local branch
-   - Does not create new branch
-
-5. **List Branches**: `worktree list`
+3. **List Branches**: `worktree list`
    - Lists all branches (local and remote)
 
 6. **Merge and Cleanup**: `worktree --merge --confirm <branch-name>`
@@ -362,8 +357,7 @@ The tool does not currently use environment variables, but agents should be awar
 ### Issue: "WARNING: not a git repository"
 **Solution**: Ensure you're in a directory with a `.git` directory or file, or use `worktree clone` to create a new repository
 
-### Issue: "WARNING: cannot use -r and -e at the same time"
-**Solution**: Choose either `-r` (for remote branch) or `-e` (for existing local branch), not both
+
 
 ### Issue: Branch completion not working
 **Solution**: Ensure you're in a Git repository and the completion script is properly sourced
@@ -422,7 +416,7 @@ When updating documentation:
 1. **Keep examples accurate**: Test all code examples before including them
 2. **Use consistent terminology**: Match existing README.md terminology
 3. **Include all flags**: Document all available flags for each command
-4. **Show both short and long forms**: Include both `-r` and `--remote` in examples
+4. **Show both short and long forms**: Include both `-d` and `--delete-worktree` in examples
 5. **Add warnings**: Note any destructive operations or potential pitfalls
 6. **Cross-reference**: Link to related commands or documentation
 
@@ -484,6 +478,7 @@ This section records changes made to AGENTS.md to maintain a history of learning
 | 2026-06-30 | Added missing `worktree init` command documentation to USAGE.md, WORKFLOW.md, ARCHITECTURE.md | User feedback: "is the documentation up to date?" → No, init command was missing | 205b110 |
 | 2026-07-19 | Added debug build cleanup guidelines - MUST remove debug binaries before committing | User feedback: "Take necessary measures to remember to delete debug builds" | de3cb7c |
 | 2026-07-25 | Added ahead/behind commit check to --delete dry-run mode | User request: "make it so that it checks by how much the branch is ahead on the --delete flag dry-run" | HEAD |
+| 2026-08-12 | Implemented auto-detection for remote and local branches - removed -r and -e flags | Plan: Auto-detect remote and local branches | pending |
 
 ---
 

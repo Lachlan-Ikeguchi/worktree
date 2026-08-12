@@ -79,20 +79,12 @@ The worktree command creates and manages worktrees at `../[branch]` relative to 
 
 #### Create a new worktree
 
-Create a new branch and worktree:
+Create a worktree with auto-detection (checks remote first, then local, then creates new from HEAD):
 ```bash
 worktree <branch-name>
 ```
 
-Create a worktree from an existing remote branch:
-```bash
-worktree -r <branch-name>
-```
-
-Create a worktree from an existing local branch:
-```bash
-worktree -e <branch-name>
-```
+When both remote and local branches exist, the remote branch is prioritized.
 
 #### List branches
 
@@ -137,8 +129,6 @@ worktree --delete --confirm <branch-name>
 
 | Flag | Description |
 |------|-------------|
-| `-r` | Create local tracking branch from origin/<branch> |
-| `-e` | Create worktree from existing local branch |
 | `-d, --delete-worktree` | Delete the worktree directory and clean up empty parent directories |
 | `--merge` | Merge branch into main/master and clean up |
 | `--delete` | Delete branch, remote branch, and worktree |
@@ -226,7 +216,7 @@ project_name/
 ## Notes
 
 - All commands must be run from within the main repository (not from a worktree)
-- The `-r` and `-e` flags are mutually exclusive
 - `--merge` and `--delete` require `--confirm` to execute
 - Dry-run mode for `--merge` and `--delete` includes worktree and branch existence validation
 - Dry-run output uses color-coded messages: green (PASS), red (FAIL), yellow (WARNING), blue (INFO)
+- Auto-detection prioritizes remote branches, then local branches, then creates new from HEAD

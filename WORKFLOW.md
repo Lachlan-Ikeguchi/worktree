@@ -119,7 +119,7 @@ The worktree lifecycle follows a clear flow from idea to completion or abandonme
 
 2. **Setup**: Create the development environment
    - For new projects: `worktree clone <url>` creates the repository structure
-   - For existing projects: `worktree <name>` or `worktree -r <name>` or `worktree -e <name>` creates the worktree
+   - For existing projects: `worktree <name>` creates the worktree with auto-detection
 
 3. **Development in Worktree**: Active development happens in the isolated worktree environment
    - Make code changes
@@ -331,11 +331,11 @@ worktree --merge --confirm feat/user-authentication
 
 ```bash
 # Someone else created the branch and pushed to remote
-# You can create a worktree from the remote branch
-worktree -r feat/team-feature
+# You can create a worktree from the remote branch (auto-detected)
+worktree feat/team-feature
 
 # This:
-# 1. Creates local tracking branch from origin/feat/team-feature
+# 1. Creates local tracking branch from origin/feat/team-feature (with upstream tracking)
 # 2. Creates worktree at '../feat/team-feature'
 # 3. Starts bash shell in the worktree
 ```
@@ -357,7 +357,7 @@ git pull origin feat/team-feature
 worktree --merge --confirm feat/team-feature
 ```
 
-**Key Difference**: Use `-r` flag to create worktree from existing remote branch instead of creating a new branch.
+**Key Difference**: Auto-detection will find the remote branch and create a local tracking branch with upstream.
 
 ---
 
@@ -373,8 +373,7 @@ worktree --merge --confirm feat/team-feature
 # From main repository
 worktree fix/login-bug-123
 
-# Or from existing remote bug branch
-worktree -r fix/login-bug-123
+# Auto-detection will find existing remote branch if it exists
 ```
 
 #### Step 2: Fix the Bug
@@ -578,9 +577,9 @@ cd existing-project/main
 # See what branches exist (local and remote)
 worktree list
 
-# Create worktrees for branches you need to work on
-worktree -r feat/current-feature
-worktree -r fix/urgent-bug
+# Create worktrees for branches you need to work on (auto-detected)
+worktree feat/current-feature
+worktree fix/urgent-bug
 ```
 
 #### Step 3: Start Contributing
@@ -985,7 +984,7 @@ For the clone command `worktree clone <url>`, the processing flow is:
 
 | Scenario | Recommended Workflow |
 |----------|---------------------|
-| Assign work | Team member: `worktree -r feat/assigned` |
+| Assign work | Team member: `worktree feat/assigned` |
 | Review PR | Check out PR branch locally |
 | Coordinate merge | `worktree --merge --confirm` after approval |
 | Clean up old branches | Regular `worktree --delete --confirm` |
@@ -994,7 +993,7 @@ For the clone command `worktree clone <url>`, the processing flow is:
 
 | Scenario | Recommended Workflow |
 |----------|---------------------|
-| Review contribution | `worktree -r pr-branch` → test → provide feedback |
+| Review contribution | `worktree pr-branch` → test → provide feedback |
 | Merge contribution | `worktree --merge --confirm` after CI passes |
 | Triage issues | Create branches for issue investigation |
 

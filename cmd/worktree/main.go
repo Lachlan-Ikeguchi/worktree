@@ -16,8 +16,6 @@ import (
 
 // Global flags for create/delete/merge operations
 var (
-	remoteFlag    bool
-	existingFlag  bool
 	deleteFlag    bool
 	mergeMode     bool
 	deleteMode    bool
@@ -30,14 +28,8 @@ var rootCmd = &cobra.Command{
 	Long: `Create and manage Git worktrees at ../<branch> relative to the main repository.
 Also clone Git repositories into project_name/[branch]/ structure.
 
-Create a new branch and worktree:
+Create a new worktree (auto-detects remote, local, or creates new branch):
   worktree <branch-name>
-
-Create a worktree from an existing remote branch:
-  worktree -r <branch-name>
-
-Create a worktree from an existing local branch:
-  worktree -e <branch-name>
 
 List all branches (local and remote):
   worktree list
@@ -70,8 +62,6 @@ Clone a repository:
 
 func init() {
 	// Global flags for create/delete/merge operations
-	rootCmd.PersistentFlags().BoolVarP(&remoteFlag, "remote", "r", false, "Create local tracking branch from origin/<branch>")
-	rootCmd.PersistentFlags().BoolVarP(&existingFlag, "existing", "e", false, "Create a worktree from an existing local branch")
 	rootCmd.PersistentFlags().BoolVarP(&deleteFlag, "delete-worktree", "d", false, "Delete the worktree directory")
 	rootCmd.PersistentFlags().BoolVar(&mergeMode, "merge", false, "Merge the branch into main and clean up")
 	rootCmd.PersistentFlags().BoolVar(&deleteMode, "delete", false, "Delete the branch, remote branch, and worktree")
@@ -191,13 +181,8 @@ defaults to 'master' if not configured.`,
 			os.Exit(1)
 		}
 
-		if (mergeMode || deleteMode) && (remoteFlag || existingFlag || deleteFlag) {
-			fmt.Fprintln(os.Stderr, "WARNING: cannot use -r, -e, or -d with --merge or --delete")
-			os.Exit(1)
-		}
-
-		if deleteFlag && (remoteFlag || existingFlag) {
-			fmt.Fprintln(os.Stderr, "WARNING: cannot use -r or -e with -d")
+		if (mergeMode || deleteMode) && deleteFlag {
+			fmt.Fprintln(os.Stderr, "WARNING: cannot use -d with --merge or --delete")
 			os.Exit(1)
 		}
 
@@ -208,11 +193,6 @@ defaults to 'master' if not configured.`,
 
 		if confirmFlag && !mergeMode && !deleteMode {
 			fmt.Fprintln(os.Stderr, "WARNING: --confirm is only used with --merge or --delete")
-			os.Exit(1)
-		}
-
-		if remoteFlag && existingFlag {
-			fmt.Fprintln(os.Stderr, "WARNING: cannot use switches -r and -e at the same time")
 			os.Exit(1)
 		}
 
@@ -240,7 +220,7 @@ defaults to 'master' if not configured.`,
 		}
 
 		// CREATE MODE
-		if err := worktree.CreateWorktree(branch, remoteFlag, existingFlag); err != nil {
+		if err := worktree.CreateWorktree(branch); err != nil {
 			fmt.Fprintf(os.Stderr, "WARNING: %v\n", err)
 			os.Exit(1)
 		}

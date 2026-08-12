@@ -63,6 +63,12 @@ func BranchExists(branch string) bool {
 	return cmd.Run() == nil
 }
 
+// RemoteBranchExists checks if a remote branch exists on origin.
+func RemoteBranchExists(branch string) bool {
+	cmd := exec.Command("git", "show-ref", "--quiet", fmt.Sprintf("refs/remotes/origin/%s", branch))
+	return cmd.Run() == nil
+}
+
 // GetLocalBranches returns a list of all local branch names.
 func GetLocalBranches() ([]string, error) {
 	cmd := exec.Command("git", "branch", "--format=%(refname:short)")

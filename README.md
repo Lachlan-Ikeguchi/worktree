@@ -1,6 +1,6 @@
 # Worktree
 
-A wrapper around git to work with worktrees and repository cloning more efficiently.
+A wrapper around git to work with worktrees more efficiently.
 
 ## Overview
 
@@ -18,11 +18,19 @@ Run the install script to build and install the binaries:
 
 This builds the Go binaries and installs them to `~/bin/`. Ensure `~/bin` is in your PATH.
 
+```bash
+./install_completion.bash
+```
+
+This installs the shell completion.
+
 ## Uninstallation
 
 ```bash
 ./uninstall.bash
 ```
+
+Removes binary at ~/bin/worktree
 
 ## Usage
 
@@ -112,7 +120,6 @@ To actually perform the merge and cleanup:
 worktree --merge --confirm <branch-name>
 ```
 
-
 #### Delete branch and worktree
 
 Delete the local branch, remote branch, and worktree (dry-run by default):
@@ -146,39 +153,6 @@ worktree --delete --confirm <branch-name>
 ## Autocompletion
 
 The `worktree` command supports shell autocompletion through Cobra, including the `clone` subcommand. The `worktree` command provides **branch name autocompletion** - when you type `worktree <TAB><TAB>`, it will automatically suggest available local and remote branch names.
-
-### Setup
-**Bash:**
-```bash
-# Load immediately
-source <(worktree completion bash)
-# Or install permanently
-worktree completion bash > /etc/bash_completion.d/worktree
-```
-
-**Zsh:**
-```zsh
-# Load immediately
-source <(worktree completion zsh)
-# Or install permanently (add to ~/.zshrc)
-worktree completion zsh > "${fpath[1]}/_worktree"
-```
-
-**Fish:**
-```fish
-# Load immediately
-worktree completion fish | source
-# Or install permanently
-worktree completion fish > ~/.config/fish/completions/worktree.fish
-```
-
-**PowerShell:**
-```powershell
-# Load immediately
-worktree completion powershell | Out-String | Invoke-Expression
-# Or install permanently (add to your profile)
-worktree completion powershell > $PROFILE.CurrentUserCurrentHost
-```
 
 View completion help:
 ```bash

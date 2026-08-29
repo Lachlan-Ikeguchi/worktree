@@ -49,7 +49,7 @@ func Clone(repoURL string) error {
 		return fmt.Errorf("failed to rename directory: %v", err)
 	}
 
-	fmt.Printf("Successfully cloned %s into %s\n", repoURL, filepath.Join(projectName, branchName))
+	fmt.Printf("Successfully cloned: %s\n", projectName)
 
 	return nil
 }

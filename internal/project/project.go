@@ -24,15 +24,11 @@ func Init(projectName string) error {
 		return fmt.Errorf("project directory '%s' already exists", projectName)
 	}
 
-	// Get default branch name
-	branchName := git.GetDefaultBranchName()
-	fmt.Printf("Using default branch: %s\n", branchName)
-
 	if err := os.MkdirAll(projectPath, 0755); err != nil {
 		return fmt.Errorf("failed to create project directory: %v", err)
 	}
 
-	// Create branch directory
+	branchName := git.GetDefaultBranchName()
 	branchPath := filepath.Join(projectPath, branchName)
 	if err := os.MkdirAll(branchPath, 0755); err != nil {
 		// Clean up project directory
@@ -48,11 +44,6 @@ func Init(projectName string) error {
 		os.RemoveAll(projectPath)
 		return fmt.Errorf("failed to initialize git repository: %v", err)
 	}
-
-	fmt.Printf("Successfully initialized project '%s' with structure:\n", projectName)
-	fmt.Printf("  %s/\n", projectName)
-	fmt.Printf("  └── %s/\n", branchName)
-	fmt.Printf("      └── .git/\n")
 
 	return nil
 }

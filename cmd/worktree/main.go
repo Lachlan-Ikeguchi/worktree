@@ -55,7 +55,7 @@ Clone a repository:
 		if cmd.Name() == "completion" || (len(args) > 0 && args[0] == "completion") || (len(args) > 0 && args[0] == "__completeNoDesc") {
 			return
 		}
-		// Note: Git repo checks are now done in individual command Run functions
+		// Note: Git repo checks are done in individual command Run functions
 		// This allows clone command to work from non-git directories
 	},
 }

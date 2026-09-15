@@ -203,6 +203,77 @@ func GetBranchStatus(branch, mainBranch string) (ahead int, behind int, err erro
 	return ahead, behind, nil
 }
 
+// GetBranchBase finds the commit that a branch was created from.
+// It lists all local branches, excludes the target branch, and finds commits
+// unique to the target branch. If there are unique commits, the base is the
+// parent of the oldest unique commit. If there are no unique commits (branch
+// was just created), the base is the branch HEAD.
+func GetBranchBase(branch string) (string, error) {
+	allBranches, err := GetLocalBranches()
+	if err != nil {
+		return "", err
+	}
+
+	var others []string
+	for _, b := range allBranches {
+		if b != branch {
+			others = append(others, b)
+		}
+	}
+
+	// Find commits unique to this branch
+	args := []string{"rev-list", branch, "--not"}
+	args = append(args, others...)
+	cmd := exec.Command("git", args...)
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("could not find unique commits: %v", err)
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	if len(lines) == 0 || lines[0] == "" {
+		// No unique commits - branch was just created, base is branch HEAD
+		cmd = exec.Command("git", "rev-parse", branch)
+		out, err := cmd.Output()
+		if err != nil {
+			return "", fmt.Errorf("could not resolve branch HEAD: %v", err)
+		}
+		return strings.TrimSpace(string(out)), nil
+	}
+
+	// Oldest unique commit is the last line
+	oldestUnique := lines[len(lines)-1]
+	cmd = exec.Command("git", "rev-parse", oldestUnique+"^")
+	out, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("could not resolve base commit: %v", err)
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
+// IsAncestor checks if ancestor is an ancestor of descendant.
+// Returns true if `git merge-base --is-ancestor <ancestor> <descendant>` succeeds.
+func IsAncestor(ancestor, descendant string) bool {
+	cmd := exec.Command("git", "merge-base", "--is-ancestor", ancestor, descendant)
+	return cmd.Run() == nil
+}
+
+// BranchesContainingCommit returns a list of local branches that contain the given commit.
+func BranchesContainingCommit(commit string) []string {
+	cmd := exec.Command("git", "branch", "--contains", commit, "--format=%(refname:short)")
+	output, err := cmd.Output()
+	if err != nil {
+		return nil
+	}
+	var result []string
+	for _, b := range strings.Split(strings.TrimSpace(string(output)), "\n") {
+		if b != "" {
+			result = append(result, b)
+		}
+	}
+	return result
+}
+
 // IsBranchMerged checks if a branch is fully merged into the main branch.
 func IsBranchMerged(branch, mainBranch string) (bool, error) {
 	cmd := exec.Command("git", "branch", "--merged", mainBranch)

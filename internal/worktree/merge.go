@@ -14,28 +14,54 @@ import (
 // MergeOrDelete handles both merge and delete operations with dry-run support.
 // If confirm is false, it performs a dry run to check if operations are possible.
 // If confirm is true, it executes the operations.
+// The merge target is the currently checked-out branch, not a hardcoded "main".
 func MergeOrDelete(branch string, mergeMode, deleteMode, confirm bool) error {
-	mainBranch, err := git.GetMainBranch()
+	currentBranch, err := git.GetCurrentBranch(".")
 	if err != nil {
-		return fmt.Errorf("could not determine main branch: %v", err)
+		return fmt.Errorf("could not determine current branch: %v", err)
+	}
+	if currentBranch == "HEAD" {
+		return fmt.Errorf("cannot merge: detached HEAD (checkout a branch first)")
+	}
+	if currentBranch == branch {
+		return fmt.Errorf("cannot merge branch '%s' into itself", branch)
 	}
 
 	if !git.BranchExists(branch) {
 		return fmt.Errorf("branch '%s' does not exist", branch)
 	}
 
+	// Validate: worktree branch must have been created from current branch lineage.
+	// This only applies to merge mode -- delete mode doesn't merge into the target.
+	if mergeMode {
+		base, err := git.GetBranchBase(branch)
+		if err != nil {
+			return fmt.Errorf("could not determine branch base: %v", err)
+		}
+		if !git.IsAncestor(base, currentBranch) {
+			containingBranches := git.BranchesContainingCommit(base)
+			return fmt.Errorf(
+				"branch '%s' was not created from '%s' (current branch). "+
+					"It was created from a commit on: %s. "+
+					"Checkout one of those branches before merging.",
+				branch, currentBranch, strings.Join(containingBranches, ", "),
+			)
+		}
+	}
+
+	mergeTarget := currentBranch
 	worktreePath := filepath.Join("..", branch)
 
 	if confirm {
-		return executeMergeOrDelete(branch, mainBranch, worktreePath, mergeMode, deleteMode)
+		return executeMergeOrDelete(branch, mergeTarget, worktreePath, mergeMode, deleteMode)
 	}
 
 	// Dry run - test if operations are actually possible
-	return dryRunMergeOrDelete(branch, mainBranch, worktreePath, mergeMode, deleteMode)
+	return dryRunMergeOrDelete(branch, mergeTarget, worktreePath, mergeMode, deleteMode)
 }
 
 // executeMergeOrDelete performs the actual merge and/or delete operations.
-func executeMergeOrDelete(branch, mainBranch, worktreePath string, mergeMode, deleteMode bool) error {
+func executeMergeOrDelete(branch, mergeTarget, worktreePath string, mergeMode, deleteMode bool) error {
 	if mergeMode {
 		// Perform merge
 		cmd := exec.Command("git", "merge", branch)
@@ -69,7 +95,7 @@ func executeMergeOrDelete(branch, mainBranch, worktreePath string, mergeMode, de
 }
 
 // dryRunMergeOrDelete tests if merge and/or delete operations are possible.
-func dryRunMergeOrDelete(branch, mainBranch, worktreePath string, mergeMode, deleteMode bool) error {
+func dryRunMergeOrDelete(branch, mergeTarget, worktreePath string, mergeMode, deleteMode bool) error {
 	typeStr := "Delete"
 	flagStr := "--delete"
 	if mergeMode {
@@ -82,31 +108,31 @@ func dryRunMergeOrDelete(branch, mainBranch, worktreePath string, mergeMode, del
 
 	allPossible := true
 
-	// Check branch status relative to main (for both merge and delete modes)
-	fmt.Printf("Checking: Branch %s status relative to %s\n", branch, mainBranch)
+	// Check branch status relative to merge target (for both merge and delete modes)
+	fmt.Printf("Checking: Branch %s status relative to %s\n", branch, mergeTarget)
 
 	// Check commits ahead
-	ahead, behind, err := git.GetBranchStatus(branch, mainBranch)
+	ahead, behind, err := git.GetBranchStatus(branch, mergeTarget)
 	if err != nil {
 		fmt.Printf("  %s: Could not check branch status: %v\n", color.Yellow("WARNING"), err)
 	} else {
 		if ahead > 0 {
-			fmt.Printf("  %s: Branch %s has %d commit(s) ahead of %s\n", color.Blue("INFO"), branch, ahead, mainBranch)
+			fmt.Printf("  %s: Branch %s has %d commit(s) ahead of %s\n", color.Blue("INFO"), branch, ahead, mergeTarget)
 		}
 		if behind > 0 {
-			fmt.Printf("  %s: Branch %s is %d commit(s) behind %s\n", color.Red("FAIL"), branch, behind, mainBranch)
+			fmt.Printf("  %s: Branch %s is %d commit(s) behind %s\n", color.Red("FAIL"), branch, behind, mergeTarget)
 			if mergeMode {
 				allPossible = false
 			}
 		}
 		if ahead == 0 && behind == 0 {
-			fmt.Printf("  %s: Branch %s has no new commits (equal to %s)\n", color.Blue("INFO"), branch, mainBranch)
+			fmt.Printf("  %s: Branch %s has no new commits (equal to %s)\n", color.Blue("INFO"), branch, mergeTarget)
 		}
 	}
 
 	if mergeMode {
 		// Test merge
-		fmt.Printf("Testing: %s %s onto %s\n", typeStr, branch, mainBranch)
+		fmt.Printf("Testing: %s %s onto %s\n", typeStr, branch, mergeTarget)
 		cmd := exec.Command("git", "merge", "--no-commit", "--no-ff", branch)
 		if err := cmd.Run(); err != nil {
 			fmt.Printf("  %s: Merge would fail: %v\n", color.Red("FAIL"), err)
@@ -154,8 +180,8 @@ func dryRunMergeOrDelete(branch, mainBranch, worktreePath string, mergeMode, del
 		fmt.Printf("  %s: Local branch '%s' does not exist\n", color.Red("FAIL"), branch)
 		allPossible = false
 	} else {
-		// Check if branch is fully merged to main branch
-		merged, err := git.IsBranchMerged(branch, mainBranch)
+		// Check if branch is fully merged to merge target
+		merged, err := git.IsBranchMerged(branch, mergeTarget)
 		if err != nil {
 			fmt.Printf("  %s: Could not check merged branches: %v\n", color.Red("FAIL"), err)
 			allPossible = false

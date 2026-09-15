@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 )
 
@@ -201,6 +202,33 @@ func GetBranchStatus(branch, mainBranch string) (ahead int, behind int, err erro
 	}
 
 	return ahead, behind, nil
+}
+
+// CountUniqueCommits returns the number of commits unique to a branch
+// (not present on any other local branch).
+func CountUniqueCommits(branch string) (int, error) {
+	allBranches, err := GetLocalBranches()
+	if err != nil {
+		return 0, err
+	}
+	var others []string
+	for _, b := range allBranches {
+		if b != branch {
+			others = append(others, b)
+		}
+	}
+	args := []string{"rev-list", branch, "--not", "--count"}
+	args = append(args, others...)
+	cmd := exec.Command("git", args...)
+	output, err := cmd.Output()
+	if err != nil {
+		return 0, fmt.Errorf("could not count unique commits: %v", err)
+	}
+	count, err := strconv.Atoi(strings.TrimSpace(string(output)))
+	if err != nil {
+		return 0, fmt.Errorf("could not parse commit count: %v", err)
+	}
+	return count, nil
 }
 
 // GetBranchBase finds the commit that a branch was created from.

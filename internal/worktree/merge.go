@@ -108,25 +108,36 @@ func dryRunMergeOrDelete(branch, mergeTarget, worktreePath string, mergeMode, de
 
 	allPossible := true
 
-	// Check branch status relative to merge target (for both merge and delete modes)
-	fmt.Printf("Checking: Branch %s status relative to %s\n", branch, mergeTarget)
-
-	// Check commits ahead
-	ahead, behind, err := git.GetBranchStatus(branch, mergeTarget)
-	if err != nil {
-		fmt.Printf("  %s: Could not check branch status: %v\n", color.Yellow("WARNING"), err)
-	} else {
-		if ahead > 0 {
-			fmt.Printf("  %s: Branch %s has %d commit(s) ahead of %s\n", color.Blue("INFO"), branch, ahead, mergeTarget)
-		}
-		if behind > 0 {
-			fmt.Printf("  %s: Branch %s is %d commit(s) behind %s\n", color.Red("FAIL"), branch, behind, mergeTarget)
-			if mergeMode {
+	// Check branch status -- merge mode compares against merge target,
+	// delete mode shows unique commits that would be lost
+	if mergeMode {
+		fmt.Printf("Checking: Branch %s status relative to %s\n", branch, mergeTarget)
+		ahead, behind, err := git.GetBranchStatus(branch, mergeTarget)
+		if err != nil {
+			fmt.Printf("  %s: Could not check branch status: %v\n", color.Yellow("WARNING"), err)
+		} else {
+			if ahead > 0 {
+				fmt.Printf("  %s: Branch %s has %d commit(s) ahead of %s\n", color.Blue("INFO"), branch, ahead, mergeTarget)
+			}
+			if behind > 0 {
+				fmt.Printf("  %s: Branch %s is %d commit(s) behind %s\n", color.Red("FAIL"), branch, behind, mergeTarget)
 				allPossible = false
 			}
+			if ahead == 0 && behind == 0 {
+				fmt.Printf("  %s: Branch %s has no new commits (equal to %s)\n", color.Blue("INFO"), branch, mergeTarget)
+			}
 		}
-		if ahead == 0 && behind == 0 {
-			fmt.Printf("  %s: Branch %s has no new commits (equal to %s)\n", color.Blue("INFO"), branch, mergeTarget)
+	} else {
+		fmt.Printf("Checking: Branch %s unique commits\n", branch)
+		uniqueCommits, err := git.CountUniqueCommits(branch)
+		if err != nil {
+			fmt.Printf("  %s: Could not count unique commits: %v\n", color.Yellow("WARNING"), err)
+		} else {
+			if uniqueCommits == 0 {
+				fmt.Printf("  %s: Branch %s has no unique commits (safe to delete)\n", color.Green("PASS"), branch)
+			} else {
+				fmt.Printf("  %s: Branch %s has %d unique commit(s) that will be lost\n", color.Yellow("WARNING"), branch, uniqueCommits)
+			}
 		}
 	}
 

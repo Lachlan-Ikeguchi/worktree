@@ -37,7 +37,7 @@ List all branches (local and remote):
 Delete a worktree directory:
   worktree -d <branch-name>
 
-Merge a branch into main/master and clean up (dry-run by default):
+Merge a branch into the currently checked-out branch and clean up (dry-run by default):
   worktree --merge <branch-name>
   worktree --merge --confirm <branch-name>
 
@@ -63,7 +63,7 @@ Clone a repository:
 func init() {
 	// Global flags for create/delete/merge operations
 	rootCmd.PersistentFlags().BoolVarP(&deleteFlag, "delete-worktree", "d", false, "Delete the worktree directory")
-	rootCmd.PersistentFlags().BoolVar(&mergeMode, "merge", false, "Merge the branch into main and clean up")
+	rootCmd.PersistentFlags().BoolVar(&mergeMode, "merge", false, "Merge the branch into the current branch and clean up")
 	rootCmd.PersistentFlags().BoolVar(&deleteMode, "delete", false, "Delete the branch, remote branch, and worktree")
 	rootCmd.PersistentFlags().BoolVar(&confirmFlag, "confirm", false, "Confirm the merge or delete operation")
 

@@ -110,10 +110,14 @@ worktree -d <branch-name>
 
 #### Merge and clean up
 
-Merge a branch into main/master and clean up (dry-run by default):
+Merge a branch into the currently checked-out branch and clean up (dry-run by default):
 ```bash
 worktree --merge <branch-name>
 ```
+
+The dry-run validates that the worktree branch was created from the current
+branch's lineage. If it was not, the dry-run errors with a hint to checkout the
+correct branch.
 
 To actually perform the merge and cleanup:
 ```bash
@@ -127,17 +131,62 @@ Delete the local branch, remote branch, and worktree (dry-run by default):
 worktree --delete <branch-name>
 ```
 
+The dry-run shows unique commits that will be lost -- commits not on any other
+local branch -- rather than comparing against the current branch.
+
 To actually perform the deletion:
 ```bash
 worktree --delete --confirm <branch-name>
 ```
+
+## Workflow: Long-Lived Feature Branch
+
+`worktree` supports teams that work on a long-lived feature branch instead of
+`master`. The `--merge` command merges into whichever branch is currently
+checked out, so you can merge worktree branches back into your feature branch
+rather than `master`.
+
+### Steps
+
+1. Clone or init the repo (lands on master/main):
+   ```bash
+   worktree clone https://github.com/user/repo.git
+   ```
+
+2. Create a long-lived feature branch:
+   ```bash
+   git checkout -b feature_branch
+   ```
+
+3. Create worktrees from it:
+   ```bash
+   worktree my-feature
+   ```
+
+4. Do work in the worktree, commit, and push.
+
+5. Merge the worktree branch back into `feature_branch`:
+   ```bash
+   git checkout feature_branch
+   worktree --merge my-feature
+   ```
+
+6. The dry-run validates that `my-feature` was created from `feature_branch`'s
+   lineage. If it was, the merge proceeds with `--confirm`.
+
+7. If someone accidentally checks out `master` and runs `--merge`, the dry-run
+   detects the mismatch and errors with a hint:
+   ```
+   FAIL: branch 'my-feature' was not created from 'master'
+   HINT: checkout 'feature_branch' and try again
+   ```
 
 ## Options
 
 | Flag | Description |
 |------|-------------|
 | `-d, --delete-worktree` | Delete the worktree directory and clean up empty parent directories |
-| `--merge` | Merge branch into main/master and clean up |
+| `--merge` | Merge branch into the current branch and clean up |
 | `--delete` | Delete branch, remote branch, and worktree |
 | `--confirm` | Confirm merge or delete operation (required for --merge and --delete) |
 | `-h, --help` | Show help message |
@@ -172,18 +221,35 @@ After cloning and creating worktrees, your directory structure will look like:
 
 ```
 project_name/
-├── main/           # Main branch (or master/trunk)
+├── main/              # Main branch (or master/trunk)
 │   └── ...
 ├── feat/
-│   ├── feature-a/  # Worktree for feature-a branch
+│   ├── feature-a/     # Worktree for feature-a branch
 │   │   └── ...
-│   └── feature-b/  # Worktree for feature-b branch
+│   └── feature-b/     # Worktree for feature-b branch
 │       └── ...
 ├── fix/
-│   └── bug-fix/    # Worktree for bug-fix branch
+│   └── bug-fix/       # Worktree for bug-fix branch
 │       └── ...
 └── docs/
-    └── readme/     # Worktree for docs/readme branch
+    └── readme/        # Worktree for docs/readme branch
+        └── ...
+```
+
+Worktrees can be created from any branch, not just main. For example, if your
+team works on a long-lived `feature_branch`:
+
+```
+project_name/
+├── feature_branch/   # Long-lived feature branch (instead of main)
+│   └── ...
+├── feat/
+│   ├── feature-a/     # Worktree for feature-a, created from feature_branch
+│   │   └── ...
+│   └── feature-b/     # Worktree for feature-b, created from feature_branch
+│       └── ...
+└── fix/
+    └── bug-fix/       # Worktree for bug-fix, created from feature_branch
         └── ...
 ```
 

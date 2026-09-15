@@ -13,7 +13,7 @@ mkdir -p "$COMPLETION_DIR"
 
 # Build worktree (includes clone subcommand)
 if [ -f cmd/worktree/main.go ]; then
-    echo "Building worktree (includes clone subcommand)..."
+    echo "Building worktree..."
     go build -o worktree ./cmd/worktree/
     ./worktree completion bash > "$COMPLETION_DIR/worktree"
     rm worktree

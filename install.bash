@@ -9,11 +9,9 @@ set -e
 mkdir -p ~/bin
 
 # Build Go binaries
-echo "Building worktree (includes clone subcommand)..."
+echo "Building worktree..."
 go build -o ~/bin/worktree ./cmd/worktree
 
 echo "Installation complete!"
 echo "Binary installed to ~/bin/worktree"
 echo "Make sure ~/bin is in your PATH"
-echo ""
-echo "Usage: worktree clone <repo-url> to clone repositories"

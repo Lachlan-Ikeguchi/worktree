@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
+	"github.com/lachlan/worktree/internal/colour"
 	"github.com/lachlan/worktree/internal/git"
 )
 
@@ -49,7 +50,7 @@ func CreateWorktree(branch string) error {
 				return fmt.Errorf("failed to create branch: %v", err)
 			}
 			fmt.Println()
-			fmt.Println("Remember to push to create tracking branches in remote")
+			fmt.Println(colour.Info() + "Remember to push to create tracking branches in remote")
 			fmt.Println()
 		}
 

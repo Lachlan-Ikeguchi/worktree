@@ -1,4 +1,4 @@
-package color
+package colour
 
 // ANSI color codes
 const (
@@ -27,4 +27,24 @@ func Yellow(text string) string {
 // Blue returns the text wrapped in blue color codes.
 func Blue(text string) string {
 	return colorBlue + text + colorReset
+}
+
+// Error returns a red "Error: " prefix string.
+func Error() string {
+	return colorRed + "Error: " + colorReset
+}
+
+// Warning returns a yellow "Warning: " prefix string.
+func Warning() string {
+	return colorYellow + "Warning: " + colorReset
+}
+
+// Info returns a blue "Info: " prefix string.
+func Info() string {
+	return colorBlue + "Info: " + colorReset
+}
+
+// Success returns a green "Success: " prefix string.
+func Success() string {
+	return colorGreen + "Success: " + colorReset
 }

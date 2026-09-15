@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/lachlan/worktree/internal/clone"
+	"github.com/lachlan/worktree/internal/colour"
 	"github.com/lachlan/worktree/internal/completion"
 	"github.com/lachlan/worktree/internal/git"
 	"github.com/lachlan/worktree/internal/list"
@@ -161,12 +162,12 @@ defaults to 'master' if not configured.`,
 	rootCmd.Run = func(cmd *cobra.Command, args []string) {
 		// Check if we're in the main repo (has .git/) not a worktree (has .git file)
 		if git.IsWorktree() {
-			fmt.Fprintln(os.Stderr, "WARNING: must be called from the main repository, not a worktree")
+			fmt.Fprintln(os.Stderr, colour.Error()+"must be called from the main repository, not a worktree")
 			os.Exit(1)
 		}
 
 		if !git.IsGitRepo() {
-			fmt.Fprintln(os.Stderr, "WARNING: not a git repository")
+			fmt.Fprintln(os.Stderr, colour.Error()+"not a git repository")
 			os.Exit(1)
 		}
 
@@ -177,27 +178,27 @@ defaults to 'master' if not configured.`,
 
 		// Validate flag combinations
 		if mergeMode && deleteMode {
-			fmt.Fprintln(os.Stderr, "WARNING: cannot use --merge and --delete together")
+			fmt.Fprintln(os.Stderr, colour.Error()+"cannot use --merge and --delete together")
 			os.Exit(1)
 		}
 
 		if (mergeMode || deleteMode) && deleteFlag {
-			fmt.Fprintln(os.Stderr, "WARNING: cannot use -d with --merge or --delete")
+			fmt.Fprintln(os.Stderr, colour.Error()+"cannot use -d with --merge or --delete")
 			os.Exit(1)
 		}
 
 		if deleteFlag && confirmFlag {
-			fmt.Fprintln(os.Stderr, "WARNING: --confirm is only used with --merge or --delete")
+			fmt.Fprintln(os.Stderr, colour.Error()+"--confirm is only used with --merge or --delete")
 			os.Exit(1)
 		}
 
 		if confirmFlag && !mergeMode && !deleteMode {
-			fmt.Fprintln(os.Stderr, "WARNING: --confirm is only used with --merge or --delete")
+			fmt.Fprintln(os.Stderr, colour.Error()+"--confirm is only used with --merge or --delete")
 			os.Exit(1)
 		}
 
 		if deleteFlag && (mergeMode || deleteMode) {
-			fmt.Fprintln(os.Stderr, "WARNING: -d cannot be used with create mode")
+			fmt.Fprintln(os.Stderr, colour.Error()+"-d cannot be used with create mode")
 			os.Exit(1)
 		}
 
@@ -205,7 +206,7 @@ defaults to 'master' if not configured.`,
 
 		if mergeMode || deleteMode {
 			if err := worktree.MergeOrDelete(branch, mergeMode, deleteMode, confirmFlag); err != nil {
-				fmt.Fprintf(os.Stderr, "WARNING: %v\n", err)
+				fmt.Fprintln(os.Stderr, colour.Error()+err.Error())
 				os.Exit(1)
 			}
 			return
@@ -213,7 +214,7 @@ defaults to 'master' if not configured.`,
 
 		if deleteFlag {
 			if err := worktree.DeleteWorktreeOnly(branch); err != nil {
-				fmt.Fprintf(os.Stderr, "WARNING: %v\n", err)
+				fmt.Fprintln(os.Stderr, colour.Error()+err.Error())
 				os.Exit(1)
 			}
 			return
@@ -221,7 +222,7 @@ defaults to 'master' if not configured.`,
 
 		// CREATE MODE
 		if err := worktree.CreateWorktree(branch); err != nil {
-			fmt.Fprintf(os.Stderr, "WARNING: %v\n", err)
+			fmt.Fprintln(os.Stderr, colour.Error()+err.Error())
 			os.Exit(1)
 		}
 	}
@@ -229,7 +230,7 @@ defaults to 'master' if not configured.`,
 
 func main() {
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(os.Stderr, colour.Error()+err.Error())
 		os.Exit(1)
 	}
 }

@@ -48,7 +48,8 @@ Delete branch and worktree (dry-run by default):
 
 Clone a repository:
   worktree clone <repository-url>`,
-	SilenceUsage: true,
+	SilenceUsage:  true,
+	SilenceErrors: true,
 	Args:         cobra.ArbitraryArgs,
 	ValidArgsFunction: completion.BranchNameCompletion,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {

@@ -47,6 +47,19 @@ func MergeOrDelete(branch string, mergeMode, deleteMode, confirm bool) error {
 				branch, currentBranch, strings.Join(containingBranches, ", "),
 			)
 		}
+
+		// Refuse to merge a branch that is behind the merge target.
+		_, behind, err := git.GetBranchStatus(branch, currentBranch)
+		if err != nil {
+			return fmt.Errorf("could not determine branch status: %v", err)
+		}
+		if behind > 0 {
+			return fmt.Errorf(
+				"cannot merge branch '%s': it is %d commit(s) behind '%s'. "+
+					"Merge '%s' into '%s' in its worktree first.",
+				branch, behind, currentBranch, currentBranch, branch,
+			)
+		}
 	}
 
 	mergeTarget := currentBranch
